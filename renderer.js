@@ -1,21 +1,22 @@
 // renderer.js
+/**
+ * This script manages all the front-end logic for the TimeNerd application,
+ * including data handling, UI rendering, event listeners, and feature logic.
+ * It uses jQuery for DOM manipulation and Lodash for utility functions.
+ */
 
-//
-// This script manages all the front-end logic for the TimeNerd application,
-// including data handling, UI rendering, event listeners, and feature logic.
-// It uses jQuery for DOM manipulation and Lodash for utility functions.
-//
+$(() => {
 
-$(() => { //
     // --- 1. SETUP & INITIALIZATION ---
     // This section defines constants, caches jQuery element selectors for performance,
     // and holds the global state of the application.
 
     // --- Constants ---
-    const IDLE_TIMEOUT_MINUTES = 5; //
+    const IDLE_TIMEOUT_MINUTES = 5;
+
     // --- Element Declarations (jQuery style) ---
     // Caching selectors prevents repeated DOM queries, improving performance.
-    const $projectListContainer = $('#project-list');
+    const $projectListContainer = $('#project-list-container');
     const $searchInput = $('#search-input');
     const $clearSearchBtn = $('#clear-search-btn');
     const $globalTimerBar = $('#global-timer-bar');
@@ -67,7 +68,7 @@ $(() => { //
         setupEventListeners();
         setupSettingsModal();
         updateGlobalTimerUI();
-        feather.replace(); // Initialize Feather icons.
+        feather.replace();
     }
 
 
@@ -114,25 +115,24 @@ $(() => { //
         });
 
         const filteredProjects = getFilteredProjects();
+        const nonArchivedProjects = filteredProjects.filter(p => !p.isArchived);
+        const $activeProjectList = $('#active-project-list').empty();
 
-        $projectListContainer.empty();
+        $projectListContainer.find('.completed-divider, .project-card.completed, .empty-state').remove();
 
         // Display the appropriate empty state message if needed.
-        if (_.isEmpty(filteredProjects) && !_.isEmpty(projects)) {
-            $projectListContainer.html(`<div class="empty-state"><h3>No items match your search.</h3><p>Try a different search term or clear the search.</p></div>`);
-        } else if (_.isEmpty(projects)) {
-            $projectListContainer.html(`<div class="empty-state"><h3>No projects yet.</h3><p>Add a new project to get started!</p></div>`);
+        if (_.isEmpty(nonArchivedProjects) && !_.isEmpty(projects.filter(p=>!p.isArchived))) {
+            $projectListContainer.append(`<div class="empty-state"><h3>No items match your search.</h3><p>Try a different search term or clear the search.</p></div>`);
+        } else if (_.isEmpty(projects.filter(p=>!p.isArchived))) {
+            $projectListContainer.append(`<div class="empty-state"><h3>No projects yet.</h3><p>Add a new project to get started!</p></div>`);
         } else {
             // Separate projects into active and completed lists.
-            const [activeProjects, completedProjects] = _.partition(filteredProjects, p => !p.isComplete);
+            const [activeProjects, completedProjects] = _.partition(nonArchivedProjects, p => !p.isComplete);
 
-            // --- Add a wrapper div for the active projects ---
-            const $activeProjectList = $('<div id="active-project-list"></div>');
             _.forEach(activeProjects, project => {
                 const isExpanded = expandedProjects.has(project.id) || _.some(project.tasks, 'isRunning');
                 $activeProjectList.append(createProjectElement(project, isExpanded));
             });
-            $projectListContainer.append($activeProjectList);
 
             // Completed projects are appended outside the sortable container
             if (!_.isEmpty(completedProjects)) {
@@ -146,72 +146,6 @@ $(() => { //
         updateDatalists();
         feather.replace(); // Re-initialize icons after DOM changes.
         setupDragAndDrop();
-    }
-
-    /**
-     * Initializes SortableJS for drag-and-drop on active projects and tasks.
-     */
-    function setupDragAndDrop() {
-        const activeProjectList = document.getElementById('active-project-list');
-
-        // Make the active project list sortable. Completed projects are not included.
-        if (activeProjectList) {
-            new Sortable(activeProjectList, {
-                animation: 150,
-                ghostClass: 'sortable-ghost',
-                handle: '.project-header',
-                onEnd: (evt) => {
-                    // Since we are only sorting active projects, the logic is simple.
-                    const activeProjects = projects.filter(p => p && !p.isComplete);
-                    const completedProjects = projects.filter(p => p && p.isComplete);
-
-                    // Reorder the active projects array based on the drag event.
-                    const [movedProject] = activeProjects.splice(evt.oldIndex, 1);
-                    activeProjects.splice(evt.newIndex, 0, movedProject);
-
-                    // Recombine the arrays and update the main projects list.
-                    projects = [...activeProjects, ...completedProjects];
-                    saveData();
-                }
-            });
-        }
-
-        // Make the task lists within each project sortable (This part remains the same)
-        document.querySelectorAll('.task-list-container').forEach(taskList => {
-            const projectId = parseInt(taskList.closest('.project-card').dataset.projectId);
-            new Sortable(taskList, {
-                animation: 150,
-                ghostClass: 'sortable-ghost',
-                onEnd: (evt) => {
-                    const project = _.find(projects, { id: projectId });
-                    if (project) {
-                        const movedTask = project.tasks.splice(evt.oldIndex, 1)[0];
-                        project.tasks.splice(evt.newIndex, 0, movedTask);
-                        saveData();
-                    }
-                }
-            });
-        });
-    }
-
-    /**
-     * Helper function to trigger the confetti animation.
-     */
-    function triggerConfetti() {
-        const duration = 2 * 1000;
-        const animationEnd = Date.now() + duration;
-        const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 100 };
-        const randomInRange = (min, max) => Math.random() * (max - min) + min;
-
-        const interval = setInterval(() => {
-            const timeLeft = animationEnd - Date.now();
-            if (timeLeft <= 0) {
-                return clearInterval(interval);
-            }
-            const particleCount = 50 * (timeLeft / duration);
-            confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
-            confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } });
-        }, 250);
     }
 
     /**
@@ -239,6 +173,38 @@ $(() => { //
                 </div>`;
         }
         
+        let projectControlsHTML = '';
+        if (project.isComplete) {
+            projectControlsHTML = `
+                <div class="project-controls">
+                    <div class="menu-container">
+                        <button class="menu-btn" data-type="project"><i data-feather="more-vertical"></i></button>
+                        <div class="menu-dropdown hidden">
+                            <a href="#" class="menu-item" data-action="complete">Re-open Project</a>
+                            <a href="#" class="menu-item" data-action="archive">Archive Project</a>
+                            <a href="#" class="menu-item danger" data-action="delete">Delete</a>
+                        </div>
+                    </div>
+                    <i data-feather="chevron-down" class="chevron ${isExpanded ? 'rotate' : ''}"></i>
+                </div>`;
+        } else {
+            projectControlsHTML = `
+                <div class="project-controls">
+                    <button class="add-task-btn" title="Add New Task"><i data-feather="plus-circle"></i></button>
+                    <div class="menu-container">
+                        <button class="menu-btn" data-type="project"><i data-feather="more-vertical"></i></button>
+                        <div class="menu-dropdown hidden">
+                            <a href="#" class="menu-item" data-action="edit">Edit</a>
+                            <a href="#" class="menu-item" data-action="export">Export CSV</a>
+                            <a href="#" class="menu-item" data-action="complete">Project Complete</a>
+                            <a href="#" class="menu-item" data-action="complete-and-archive">Complete & Archive</a>
+                            <a href="#" class="menu-item danger" data-action="delete">Delete</a>
+                        </div>
+                    </div>
+                    <i data-feather="chevron-down" class="chevron ${isExpanded ? 'rotate' : ''}"></i>
+                </div>`;
+        }
+        
         const tasksHTML = !_.isEmpty(project.tasks) ? _.map(project.tasks, createTaskElement).join('') : '<p class="no-tasks">No tasks in this project yet.</p>';
 
         return `
@@ -250,19 +216,7 @@ $(() => { //
                         <p id="project-total-${project.id}">Total Time: ${formatTime(totalMs)}</p>
                         ${budgetHTML}
                     </div>
-                    <div class="project-controls">
-                        <button class="add-task-btn" title="Add New Task"><i data-feather="plus-circle"></i></button>
-                        <div class="menu-container">
-                            <button class="menu-btn" data-type="project"><i data-feather="more-vertical"></i></button>
-                            <div class="menu-dropdown hidden">
-                                <a href="#" class="menu-item" data-action="edit">Edit</a>
-                                <a href="#" class="menu-item" data-action="export">Export CSV</a>
-                                <a href="#" class="menu-item" data-action="complete">${project.isComplete ? 'Re-open Project' : 'Project Complete'}</a>
-                                <a href="#" class="menu-item danger" data-action="delete">Delete</a>
-                            </div>
-                        </div>
-                        <i data-feather="chevron-down" class="chevron ${isExpanded ? 'rotate' : ''}"></i>
-                    </div>
+                    ${projectControlsHTML}
                 </div>
                 <div class="task-list-container ${isExpanded ? '' : 'hidden'}">${tasksHTML}</div>
             </div>`;
@@ -276,27 +230,27 @@ $(() => { //
     function createTaskElement(task) {
         const tagsHTML = _.map(task.tags, tag => `<span class="tag" data-tag="${_.escape(tag)}">${_.escape(tag)}</span>`).join('');
         return `
-                <div class="task-item" data-task-id="${task.id}">
-                    <div class="task-details">
-                        <h4>${_.escape(task.name)}</h4>
-                        <div class="tags">${tagsHTML}</div>
-                    </div>
-                    <div class="task-controls">
-                        <div class="timer" id="timer-${task.id}">${formatTime(task.totalTime)}</div>
-                        <div class="buttons">
-                            <button class="start-stop-btn ${task.isRunning ? 'stop' : 'start'}">${task.isRunning ? 'Stop' : 'Start'}</button>
-                            <button class="view-log-btn">Logs</button>
-                            <button class="notes-btn">Notes</button> {/* Add this button */}
-                            <div class="menu-container">
-                                <button class="menu-btn" data-type="task"><i data-feather="more-vertical"></i></button>
-                                <div class="menu-dropdown hidden">
-                                    <a href="#" class="menu-item" data-action="edit">Edit</a>
-                                    <a href="#" class="menu-item danger" data-action="delete">Delete</a>
-                                </div>
+            <div class="task-item" data-task-id="${task.id}">
+                <div class="task-details">
+                    <h4>${_.escape(task.name)}</h4>
+                    <div class="tags">${tagsHTML}</div>
+                </div>
+                <div class="task-controls">
+                    <div class="timer" id="timer-${task.id}">${formatTime(task.totalTime)}</div>
+                    <div class="buttons">
+                        <button class="start-stop-btn ${task.isRunning ? 'stop' : 'start'}">${task.isRunning ? 'Stop' : 'Start'}</button>
+                        <button class="view-log-btn">Logs</button>
+                        <button class="notes-btn">Notes</button>
+                        <div class="menu-container">
+                            <button class="menu-btn" data-type="task"><i data-feather="more-vertical"></i></button>
+                            <div class="menu-dropdown hidden">
+                                <a href="#" class="menu-item" data-action="edit">Edit</a>
+                                <a href="#" class="menu-item danger" data-action="delete">Delete</a>
                             </div>
                         </div>
                     </div>
-                </div>`;
+                </div>
+            </div>`;
     }
     
     /**
@@ -309,6 +263,46 @@ $(() => { //
         $('#tag-list').html(_.map(allTags, t => `<option value="${_.escape(t)}"></option>`).join(''));
     }
 
+    /**
+     * Initializes SortableJS for drag-and-drop on active projects and tasks.
+     */
+    function setupDragAndDrop() {
+        const activeProjectList = document.getElementById('active-project-list');
+
+        if (activeProjectList) {
+            new Sortable(activeProjectList, {
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                handle: '.project-header',
+                onEnd: (evt) => {
+                    const activeProjects = projects.filter(p => p && !p.isComplete);
+                    const completedProjects = projects.filter(p => p && p.isComplete);
+
+                    const [movedProject] = activeProjects.splice(evt.oldIndex, 1);
+                    activeProjects.splice(evt.newIndex, 0, movedProject);
+
+                    projects = [...activeProjects, ...completedProjects];
+                    saveData();
+                }
+            });
+        }
+
+        document.querySelectorAll('.task-list-container').forEach(taskList => {
+            const projectId = parseInt(taskList.closest('.project-card').dataset.projectId);
+            new Sortable(taskList, {
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                onEnd: (evt) => {
+                    const project = _.find(projects, { id: projectId });
+                    if (project) {
+                        const movedTask = project.tasks.splice(evt.oldIndex, 1)[0];
+                        project.tasks.splice(evt.newIndex, 0, movedTask);
+                        saveData();
+                    }
+                }
+            });
+        });
+    }
 
     // --- 4. EVENT LISTENERS & HANDLERS ---
     // This section registers all event listeners and defines their handler functions.
@@ -319,63 +313,64 @@ $(() => { //
     function setupEventListeners() {
         // Main controls
         $('#add-project-btn').on('click', openAddProjectModal);
-        $projectListContainer.on('click', handleProjectListClick);
-        $projectListContainer.on('click', handleProjectListClick);
-        $searchInput.on('input', _.debounce(handleSearch, 200));
-        $clearSearchBtn.on('click', clearSearch);
-
-        // Modals and forms
         $('#project-form').on('submit', handleSaveProject);
         $('#cancel-project-form').on('click', closeProjectModal);
         $('#edit-task-form').on('submit', handleSaveTaskEdit);
         $('#cancel-edit-task').on('click', closeEditTaskModal);
-        $('#add-task-modal-form').on('submit', handleAddTaskFromModal);
-        $('#cancel-add-task').on('click', closeAddTaskModal);
-        $('#confirm-delete').on('click', handleConfirm);
-        $('#cancel-delete').on('click', closeConfirmModal);
-        $('#close-modal').on('click', closeLogModal);
-        $('#close-notes-view').on('click', closeNotesView);
-        $('#add-note-btn').on('click', handleAddNote);
-        $('#archived-projects-btn').on('click', showArchivedProjects);
 
-        // Settings and system menu
+        $projectListContainer.on('click', handleProjectListClick);
         $('#settings-btn').on('click', () => $('#settings-dropdown').toggleClass('hidden'));
         $('#export-btn').on('click', handleExport);
         $('#import-btn').on('click', handleImport);
-
-        // Google Sheet Sync
         $('#google-sheet-modal-btn').on('click', openGoogleSheetModal);
+        $('#concurrent-tasks-toggle').on('change', handleConcurrentToggle);
         $('#link-sheet-btn').on('click', handleLinkSheet);
         $('#cancel-sheet-link').on('click', closeGoogleSheetModal);
+        $('#close-modal').on('click', () => $logModal.addClass('hidden'));
+        $('#confirm-delete').on('click', handleConfirm);
+        $('#cancel-delete').on('click', closeConfirmModal);
+        $('#add-task-modal-form').on('submit', handleAddTaskFromModal);
+        $('#cancel-add-task').on('click', closeAddTaskModal);
         
-        // Settings Modal controls
-        $('#concurrent-tasks-toggle').on('change', handleConcurrentToggle);
+        $searchInput.on('input', _.debounce(handleSearch, 200));
+        $clearSearchBtn.on('click', clearSearch);
         
-        // Idle detection modal
+        $(window).on('keydown', handleKeyboardShortcuts);
         $('#idle-keep-btn').on('click', handleIdleKeep);
         $('#idle-discard-btn').on('click', handleIdleDiscard);
+
+        // New listeners for Notes and Archive
+        $('#close-notes-view').on('click', closeNotesView);
+        $('#add-note-btn').on('click', handleAddNote);
+        $('#archived-projects-btn').on('click', showArchivedProjects);
 
         // Global timer bar controls
         $('#global-timer-stop-btn').on('click', handleGlobalStop);
         $('#global-timer-prev').on('click', cycleGlobalTimer(-1));
         $('#global-timer-next').on('click', cycleGlobalTimer(1));
         
-        // Window-level events
-        $(window).on('keydown', handleKeyboardShortcuts);
+        $(window).on('click', closeMenusOnClickOutside);
         $(window).on('online offline', handleOnlineStatusChange);
-        $(window).on('click', (e) => {
-            closeMenusOnClickOutside(e);
-            if (!$(e.target).closest('.menu-container, #settings-menu-container').length) {
-                $('.menu-dropdown').addClass('hidden');
-                $('.project-card').removeClass('menu-open');
-            }
+        handleOnlineStatusChange();
+        setupNotesListener();
+
+        $('#close-archive-modal').on('click', () => $('#archive-modal').addClass('hidden'));
+
+        // Use event delegation for buttons inside the archive modal
+        $('#archive-modal-body').on('click', '.unarchive-btn', function() {
+            const projectId = parseInt($(this).closest('.archived-item').data('projectId'));
+            unarchiveProject(projectId);
         });
-        handleOnlineStatusChange(); // Initial check
+
+        $('#archive-modal-body').on('click', '.delete-btn', function() {
+            const projectId = parseInt($(this).closest('.archived-item').data('projectId'));
+            // We can reuse the existing confirmation modal for deletion
+            openConfirmModal({ type: 'project', projectId });
+            // Close the archive modal after initiating delete
+            $('#archive-modal').addClass('hidden');
+        });
     }
     
-    /**
-     * Handles all click events within the project list using event delegation.
-     */
     function handleProjectListClick(e) {
         const $target = $(e.target);
         const $projectHeader = $target.closest('.project-header');
@@ -399,7 +394,7 @@ $(() => { //
         } else if ($button.length) {
             if ($button.hasClass('start-stop-btn')) toggleTimer(projectId, taskId, $button);
             if ($button.hasClass('view-log-btn')) showLogs(projectId, taskId);
-            if ($button.hasClass('notes-btn')) openNotesView(projectId, taskId); // <-- Add this
+            if ($button.hasClass('notes-btn')) openNotesView(projectId, taskId);
         } else if ($menuItem.length) {
             // We re-fetch projectId from the menuItem's context here
             const actionProjectId = parseInt($menuItem.closest('[data-project-id]')?.data('projectId'));
@@ -416,24 +411,19 @@ $(() => { //
         $projectHeader.next('.task-list-container').toggleClass('hidden');
         $projectHeader.find('.chevron').toggleClass('rotate');
     }
-    
+
     /**
      * Toggles the visibility of a context menu dropdown.
      */
     function toggleMenuDropdown($button) {
         const $dropdown = $button.next('.menu-dropdown');
-        $('.menu-dropdown').not($dropdown).addClass('hidden'); // Close other menus
+        const $currentCard = $button.closest('.project-card');
+
+        $('.project-card').not($currentCard).removeClass('menu-open');
+        $('.menu-dropdown').not($dropdown).addClass('hidden');
+
         $dropdown.toggleClass('hidden');
-    }
-    
-    /**
-     * Handles clicks on task-level control buttons (Start/Stop, Logs).
-     */
-    function handleTaskControlButtonClick($target, $button) {
-        const projectId = $target.closest('[data-project-id]').data('projectId');
-        const taskId = $target.closest('[data-task-id]')?.data('taskId');
-        if ($button.hasClass('start-stop-btn')) toggleTimer(projectId, taskId, $button);
-        if ($button.hasClass('view-log-btn')) showLogs(projectId, taskId);
+        $currentCard.toggleClass('menu-open', !$dropdown.hasClass('hidden'));
     }
     
     /**
@@ -447,6 +437,8 @@ $(() => { //
         if (action === 'delete') openConfirmModal({ type, projectId, taskId });
         if (action === 'export') exportProjectToCSV(projectId);
         if (action === 'complete') toggleProjectComplete(projectId);
+        if (action === 'archive') archiveProject(projectId);
+        if (action === 'complete-and-archive') completeAndArchiveProject(projectId);
 
         $menuItem.closest('.menu-dropdown').addClass('hidden');
     }
@@ -469,13 +461,14 @@ $(() => { //
         $clearSearchBtn.addClass('hidden');
         render();
     }
-    
+
     /**
      * Closes dropdown menus if a click occurs outside of them.
      */
     function closeMenusOnClickOutside(e) {
         if (!$(e.target).closest('.menu-container, #settings-menu-container').length) {
             $('.menu-dropdown').addClass('hidden');
+            $('.project-card').removeClass('menu-open');
         }
     }
 
@@ -592,7 +585,7 @@ $(() => { //
             }
         }
     }
-    
+
     /**
      * Starts monitoring for system idle time if a timer is running.
      */
@@ -722,9 +715,9 @@ $(() => { //
      * Handles global keyboard shortcuts.
      */
     function handleKeyboardShortcuts(e) {
-        // Escape key closes any open modal.
         if (e.key === 'Escape') {
             $('.modal').addClass('hidden');
+            closeNotesView();
         }
         if ($('.modal:not(.hidden)').length) return; // Don't trigger shortcuts if a modal is open.
         
@@ -909,13 +902,8 @@ $(() => { //
             Object.assign(project, { name, customer, budget });
         } else { // Otherwise, create a new project.
             projects.unshift({
-                id: Date.now(),
-                name,
-                customer,
-                tasks: [],
-                budget,
-                isComplete: false,
-                createdAt: new Date().toISOString()
+                id: Date.now(), name, customer, tasks: [], budget,
+                isComplete: false, isArchived: false, createdAt: new Date().toISOString()
             });
         }
         
@@ -972,13 +960,8 @@ $(() => { //
         const name = $('#modal-task-name').val().trim();
         const tags = _.map($('#modal-task-tags').val().split(','), _.trim);
         project.tasks.push({
-            id: Date.now(),
-            name,
-            tags,
-            logs: [],
-            totalTime: 0,
-            isRunning: false,
-            currentStartTime: null,
+            id: Date.now(), name, tags, logs: [], totalTime: 0,
+            isRunning: false, currentStartTime: null, notes: [],
             createdAt: new Date().toISOString()
         });
         saveData();
@@ -986,8 +969,10 @@ $(() => { //
         closeAddTaskModal();
     }
 
-    function closeLogModal() { $logModal.addClass("hidden"); }
-    function closeConfirmModal() { $confirmModal.addClass("hidden"); actionToConfirm = null; }
+    function closeConfirmModal() {
+        $confirmModal.addClass("hidden");
+        actionToConfirm = null;
+    }
 
     function openConfirmModal(action) {
         // Store the action to be performed if the user confirms.
@@ -1078,7 +1063,6 @@ $(() => { //
         }
 
         const project = _.find(projects, { id: projectId });
-
         if (!project) {
             console.error("Export failed: Could not find project with ID:", projectId);
             return; // Stop if the project isn't found
@@ -1111,26 +1095,18 @@ $(() => { //
             }
 
             return _.map(task.logs, log => [
-                project.name,
-                task.name,
-                project.customer || 'N/A',
-                task.tags.join(', '),
+                project.name, task.name, project.customer || 'N/A', task.tags.join(', '),
                 task.createdAt ? formatDate(new Date(task.createdAt)) : 'N/A',
-                project.budget > 0 ? project.budget : 'N/A', // Add project budget
-                budgetPercentage, // Add calculated task percentage
-                formatDate(new Date(log.start)),
-                new Date(log.start).toLocaleTimeString(),
-                formatDate(new Date(log.end)),
-                new Date(log.end).toLocaleTimeString(),
+                project.budget > 0 ? project.budget : 'N/A',
+                budgetPercentage,
+                formatDate(new Date(log.start)), new Date(log.start).toLocaleTimeString(),
+                formatDate(new Date(log.end)), new Date(log.end).toLocaleTimeString(),
                 formatTime(log.end - log.start)
             ]);
         });
 
         // Process each row to escape its cells before joining.
-        const csvRows = [headers, ...rows].map(row => 
-            row.map(escapeCsvCell).join(',')
-        );
-        
+        const csvRows = [headers, ...rows].map(row => row.map(escapeCsvCell).join(','));
         let csvContent = csvRows.join('\n');
         const safeFileName = project.name.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'export';
 
@@ -1162,22 +1138,14 @@ $(() => { //
 
         // Map over the logs of only the specified task.
         const rows = _.map(task.logs, log => [
-            project.name,
-            task.name,
-            project.customer || 'N/A',
-            task.tags.join(', '),
+            project.name, task.name, project.customer || 'N/A', task.tags.join(', '),
             task.createdAt ? formatDate(new Date(task.createdAt)) : 'N/A',
-            formatDate(new Date(log.start)),
-            new Date(log.start).toLocaleTimeString(),
-            formatDate(new Date(log.end)),
-            new Date(log.end).toLocaleTimeString(),
+            formatDate(new Date(log.start)), new Date(log.start).toLocaleTimeString(),
+            formatDate(new Date(log.end)), new Date(log.end).toLocaleTimeString(),
             formatTime(log.end - log.start)
         ]);
 
-        const csvRows = [headers, ...rows].map(row => 
-            row.map(escapeCsvCell).join(',')
-        );
-        
+        const csvRows = [headers, ...rows].map(row => row.map(escapeCsvCell).join(','));
         let csvContent = csvRows.join('\n');
         
         // Create the new, specific filename.
@@ -1235,20 +1203,207 @@ $(() => { //
                 <p>Total: ${formatTime(task.totalTime)}</p>
                 <button id="export-csv-btn">Export Task CSV</button>
             </div>`);
-            
-        // --- This is the corrected line ---
-        // It now calls the new function, passing both the project and the task.
         $footerContent.find('#export-csv-btn').on('click', () => exportTaskToCSV(project, task));
-        
         $modalFooter.append($footerContent);
         $logModal.removeClass("hidden");
     }
 
-    // --- 7. UTILITY & HELPER FUNCTIONS ---
+    function archiveProject(projectId) {
+        const project = _.find(projects, { id: projectId });
+        if (project) {
+            project.isArchived = true;
+            saveData();
+            render();
+        }
+    }
 
     /**
-     * Adds a row of data to the sync queue if the app is offline.
+     * Marks a project as complete and immediately archives it.
      */
+    function completeAndArchiveProject(projectId) {
+        const project = _.find(projects, { id: projectId });
+        if (project) {
+            project.isComplete = true;
+            project.isArchived = true;
+            triggerConfetti(); // Give the user some celebratory confetti!
+            saveData();
+            render();
+        }
+    }
+
+    /**
+     * Opens a modal to display and manage archived projects.
+     */
+    function showArchivedProjects() {
+        $('#settings-dropdown').addClass('hidden'); // <-- Add this line to close the menu
+
+        const archivedProjects = projects.filter(p => p.isArchived);
+        const $modalBody = $('#archive-modal-body').empty();
+
+        if (_.isEmpty(archivedProjects)) {
+            $modalBody.html('<p class="no-tasks">You have no archived projects.</p>');
+        } else {
+            _.forEach(archivedProjects, project => {
+                const itemHTML = `
+                    <div class="archived-item" data-project-id="${project.id}">
+                        <div class="archived-item-info">
+                            <h4>${_.escape(project.name)}</h4>
+                            <p>Customer: ${_.escape(project.customer) || 'N/A'}</p>
+                        </div>
+                        <div class="archived-item-controls">
+                            <button class="unarchive-btn">Unarchive</button>
+                            <button class="danger delete-btn">Delete</button>
+                        </div>
+                    </div>
+                `;
+                $modalBody.append(itemHTML);
+            });
+        }
+
+        // Open the modal
+        $('#archive-modal').removeClass('hidden');
+    }
+
+    /**
+     * Unarchives a project, making it visible again.
+     */
+    function unarchiveProject(projectId) {
+        const project = _.find(projects, { id: projectId });
+        if (project) {
+            project.isArchived = false;
+            saveData();
+            render(); // Re-render the main list
+            showArchivedProjects(); // Refresh the modal list
+        }
+    }
+
+    // --- 7. NOTES FEATURE FUNCTIONS ---
+
+    function initializeQuillEditor() {
+        if (quill) return;
+        quill = new Quill('#notes-editor', {
+            theme: 'snow',
+            modules: { toolbar: '#notes-toolbar' },
+            placeholder: 'Add a timestamped note...'
+        });
+    }
+
+    function openNotesView(projectId, taskId) {
+        activeNotesTaskId = taskId;
+        const project = _.find(projects, { id: projectId });
+        const task = _.find(project.tasks, { id: taskId });
+
+        $('#notes-task-title').text(`Notes for: ${task.name}`);
+        renderNotesForTask(task);
+        $notesView.removeClass('hidden');
+        initializeQuillEditor();
+    }
+
+    /**
+     * Sets up the event listener for the notes list.
+     */
+    function setupNotesListener() {
+        $('#notes-list').on('click', '.delete-note-btn', function() {
+            const noteTimestamp = $(this).closest('.note-item').data('timestamp');
+            if (activeNotesTaskId && noteTimestamp) {
+                handleDeleteNote(activeNotesTaskId, noteTimestamp);
+            }
+        });
+    }
+
+    /**
+     * Renders the list of notes for the active task and scrolls to the bottom.
+     */
+    function renderNotesForTask(task) {
+        const $notesList = $('#notes-list').empty();
+        if (!task.notes || _.isEmpty(task.notes)) {
+            $notesList.html('<p class="no-tasks">No notes for this task yet.</p>');
+            return;
+        }
+
+        const sortedNotes = _.sortBy(task.notes, 'timestamp');
+
+        _.forEach(sortedNotes, note => {
+            const noteHTML = `
+                <div class="note-item" data-timestamp="${note.timestamp}">
+                    <div class="note-meta">
+                        <span>${new Date(note.timestamp).toLocaleString()}</span>
+                        <button class="delete-note-btn" title="Delete Note"><i data-feather="trash-2"></i></button>
+                    </div>
+                    <div class="note-content">${note.content}</div>
+                </div>`;
+            $notesList.append(noteHTML);
+        });
+
+        feather.replace(); // Re-initialize icons for the new delete buttons
+
+        setTimeout(() => {
+            const notesListElement = $notesList[0];
+            if (notesListElement) {
+                notesListElement.scrollTop = notesListElement.scrollHeight;
+            }
+        }, 0);
+    }
+
+    /**
+     * Handles the deletion of a specific note from a task.
+     */
+    function handleDeleteNote(taskId, noteTimestamp) {
+        const taskInfo = findTaskById(taskId);
+        if (taskInfo && taskInfo.task.notes) {
+            // Remove the note with the matching timestamp
+            _.remove(taskInfo.task.notes, (note) => note.timestamp === noteTimestamp);
+            saveData();
+            renderNotesForTask(taskInfo.task); // Re-render the notes list
+        }
+    }
+
+    function closeNotesView() {
+        $notesView.addClass('hidden');
+        activeNotesTaskId = null;
+        if (quill) {
+            quill.setText('');
+        }
+    }
+
+    function handleAddNote() {
+        if (!activeNotesTaskId || !quill) return;
+
+        const content = quill.root.innerHTML;
+        if (quill.getLength() <= 1) return;
+
+        const taskInfo = findTaskById(activeNotesTaskId);
+        if (taskInfo) {
+            if (!taskInfo.task.notes) {
+                taskInfo.task.notes = [];
+            }
+            taskInfo.task.notes.push({
+                timestamp: new Date().toISOString(),
+                content: content
+            });
+            saveData();
+            renderNotesForTask(taskInfo.task);
+            quill.setText('');
+        }
+    }
+
+    // --- 8. UTILITY & HELPER FUNCTIONS ---
+
+    function triggerConfetti() {
+        const duration = 2 * 1000;
+        const animationEnd = Date.now() + duration;
+        const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 100 };
+        const randomInRange = (min, max) => Math.random() * (max - min) + min;
+
+        const interval = setInterval(() => {
+            const timeLeft = animationEnd - Date.now();
+            if (timeLeft <= 0) return clearInterval(interval);
+            const particleCount = 50 * (timeLeft / duration);
+            confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
+            confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } });
+        }, 250);
+    }
+
     async function queueForSync(rowData) {
         const queue = await window.electronAPI.getPendingSyncs();
         queue.push(rowData);
@@ -1287,6 +1442,14 @@ $(() => { //
         }
         return tasks;
     }
+
+    function findTaskById(taskId) {
+        for (const project of projects) {
+            const task = _.find(project.tasks, { id: taskId });
+            if (task) return { project, task };
+        }
+        return null;
+    }
     
     /**
      * Formats milliseconds into a HH:MM:SS string.
@@ -1318,6 +1481,6 @@ $(() => { //
         }
     }
 
-    // --- 8. START APPLICATION ---
+    // --- 9. START APPLICATION ---
     initialize();
 });
