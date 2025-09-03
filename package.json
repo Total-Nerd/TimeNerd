@@ -1,0 +1,54 @@
+{
+  "name": "time-nerd",
+  "version": "1.0.0",
+  "productName": "Time Nerd",
+  "description": "A nerdy app for tracking time efficiently.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "dist": "electron-builder"
+  },
+  "keywords": [
+    "Electron",
+    "time",
+    "tracker"
+  ],
+  "author": "Total Nerd",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^37.3.1",
+    "electron-builder": "^26.0.12",
+    "electron-reloader": "^1.2.3"
+  },
+  "dependencies": {
+    "electron-store": "^8.1.0",
+    "googleapis": "^158.0.0",
+    "jquery": "^3.7.1",
+    "lodash": "^4.17.21"
+  },
+  "build": {
+    "appId": "com.timenerd.app",
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": "dmg",
+      "icon": "build/icon.icns"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "license": "build/license.txt",
+      "installerIcon": "build/installerIcon.ico",
+      "createStartMenuShortcut": true,
+      "allowElevation": true
+    },
+    "files": [
+      "**/*"
+    ]
+  }
+}

@@ -1,0 +1,1019 @@
+/**
+ * TimeNerd - Stylesheet
+ *
+ * This file is organized into the following sections:
+ * 1. FONTS & ROOT VARIABLES
+ * 2. GLOBAL & THEME STYLES
+ * 3. LAYOUT & STRUCTURE
+ * 4. FORMS & INPUTS
+ * 5. BUTTONS & CONTROLS
+ * 6. PROJECT & TASK COMPONENTS
+ * 7. MODALS
+ * 8. UTILITIES & ANIMATIONS
+ */
+
+/* --- 1. FONTS & ROOT VARIABLES --- */
+
+/* Font face declarations for Inter */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  src: local(''),
+       url('./assets/fonts/inter-v19-latin-regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  src: local(''),
+       url('./assets/fonts/inter-v19-latin-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  src: local(''),
+       url('./assets/fonts/inter-v19-latin-700.woff2') format('woff2');
+}
+
+/* Root variables for the entire application */
+:root {
+  --font-sans: 'Inter', sans-serif;
+
+  /* Light Theme Color Palette */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f9fafb;
+  --bg-tertiary: #f3f4f6;
+  --bg-hover: #f0f1f3;
+  --bg-modal: rgba(0, 0, 0, 0.7);
+
+  --text-primary: #1f2937;
+  --text-secondary: #4b5563;
+  --text-on-accent: #1f2937;
+
+  --border-primary: #e5e7eb;
+  --border-secondary: #d1d5db;
+  --border-accent-focus: #f59e0b;
+
+  --accent-primary: #f59e0b;
+  --accent-primary-hover: #d97706;
+  --accent-secondary: #fbbf24;
+
+  --success: #16a34a;
+  --danger: #dc2626;
+  --danger-hover: #b91c1c;
+  
+  --tag-bg: #fef3c7;
+  --tag-text: #92400e;
+
+  /* Shadows & Transitions */
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.06);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --transition-speed: 0.3s;
+}
+
+
+/* --- 2. GLOBAL & THEME STYLES --- */
+
+.dark {
+  /* Dark Theme Color Palette */
+  --bg-primary: #030712;
+  --bg-secondary: #111827;
+  --bg-tertiary: #1f2937;
+  --bg-hover: #1f2937;
+  --text-primary: #f9fafb;
+  --text-secondary: #9ca3af;
+  --border-primary: #374151;
+  --border-secondary: #4b5563;
+  --tag-bg: #78350f;
+  --tag-text: #fde68a;
+}
+
+/* Universal box-sizing and base body styles */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  margin: 0;
+  transition: background-color var(--transition-speed), color var(--transition-speed);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+
+/* --- 3. LAYOUT & STRUCTURE --- */
+
+/* Main application header */
+.top-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+  padding: 0.75rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between; 
+  gap: 1.5rem;
+  z-index: 100;
+  box-shadow: var(--shadow-md);
+  -webkit-app-region: no-drag; /* Prevents dragging from banner */
+}
+
+.top-banner-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-basis: 320px;
+    justify-content: flex-end;
+}
+
+/* Main content container */
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 6rem 2rem 12rem; /* Added bottom padding for global timer bar */
+}
+
+
+/* --- 4. FORMS & INPUTS --- */
+
+/* General input styles */
+input[type="text"], input[type="number"], select {
+  width: 100%;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  padding: 0.75rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--border-secondary);
+  outline: none;
+  transition: border-color var(--transition-speed), box-shadow var(--transition-speed);
+}
+
+input[type="text"]:focus, input[type="number"]:focus, select:focus {
+  border-color: var(--border-accent-focus);
+  box-shadow: 0 0 0 3px hsla(var(--accent-primary-hsl), 0.2);
+}
+
+/* Search bar specific styles */
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 320px;
+  flex-basis: 320px;
+}
+.search-input-wrapper .feather-search {
+  position: absolute;
+  left: 1rem;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+#search-input {
+  width: 100%;
+  padding-left: 3rem;
+}
+#clear-search-btn {
+  position: absolute;
+  right: 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+/* Styles for forms inside modals */
+.modal-content .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.modal-content .form-group h4 {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+
+/* --- 5. BUTTONS & CONTROLS --- */
+
+/* Base button reset */
+button {
+  -webkit-app-region: no-drag;
+  cursor: pointer;
+  border: none;
+  font-family: var(--font-sans);
+  transition: all var(--transition-speed) ease;
+}
+
+/* Primary "Add Project" button */
+#add-project-btn {
+  background-color: var(--accent-primary);
+  color: var(--text-on-accent);
+  font-weight: 700;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  box-shadow: var(--shadow-md);
+}
+#add-project-btn:hover {
+  background-color: var(--accent-primary-hover);
+  box-shadow: var(--shadow-lg);
+}
+
+/* General icon-based buttons (settings, menus) */
+.top-banner-controls button, 
+.project-controls .menu-btn, 
+.buttons .menu-btn {
+  background-color: transparent;
+  padding: 0.5rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+.top-banner-controls button:hover, 
+.project-controls .menu-btn:hover, 
+.buttons .menu-btn:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* Add Task button within project headers */
+.project-header .add-task-btn {
+  background-color: var(--bg-tertiary);
+  color: var(--text-secondary);
+  padding: 0.35rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 0.5rem;
+}
+.project-header .add-task-btn:hover {
+  background-color: var(--accent-secondary);
+  color: var(--text-on-accent);
+}
+
+/* Start/Stop and Log buttons for tasks */
+.start-stop-btn, .view-log-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-md);
+  transition: filter var(--transition-speed);
+  font-weight: 600;
+  font-size: 0.875rem;
+  -webkit-font-smoothing: antialiased;
+  min-width: 80px;
+}
+.start-stop-btn:hover, .view-log-btn:hover {
+  filter: brightness(1.1);
+}
+.start-stop-btn.start { background-color: var(--success); }
+.start-stop-btn.stop { background-color: var(--danger); }
+.view-log-btn { background-color: var(--accent-secondary); color: var(--text-on-accent); }
+.view-log-btn:hover { background-color: var(--accent-primary); }
+
+
+/* --- 6. PROJECT & TASK COMPONENTS --- */
+
+/* Main container for the list of projects */
+#project-list,
+#active-project-list {
+  display: flex; 
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Empty state and completed projects divider */
+.empty-state, .completed-divider {
+  text-align: center;
+  padding: 2rem;
+  background-color: var(--bg-secondary);
+  border-radius: 0.5rem;
+  color: var(--text-secondary);
+  border: 1px dashed var(--border-primary);
+}
+.completed-divider {
+  padding: 0.5rem; 
+  margin-top: 1rem;
+  border-top: 1px solid var(--border-primary);
+}
+
+/* Individual project card */
+.project-card {
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-primary);
+  background: linear-gradient(145deg, var(--bg-secondary), white);
+  transition: box-shadow var(--transition-speed);
+}
+.dark .project-card {
+  background: linear-gradient(145deg, var(--bg-secondary), var(--bg-tertiary));
+}
+.project-card:hover {
+  box-shadow: var(--shadow-xl);
+}
+.project-card.completed { opacity: 0.7; }
+
+/* Project header section */
+.project-header {
+  padding: 1rem 1.5rem;
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center;
+  cursor: pointer;
+  transition: background-color var(--transition-speed);
+  border-radius: 0.75rem 0.75rem 0 0;
+}
+.project-header:hover {
+  background-color: var(--bg-hover);
+}
+.project-header h3 {
+  font-size: 1.25rem; 
+  font-weight: 700;
+  margin: 0;
+}
+.project-header p {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0.25rem 0 0;
+}
+.project-header .project-info {
+  flex-grow: 1;
+  padding-right: 1rem;
+}
+.project-info .project-customer {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin: 0.25rem 0 0;
+}
+.project-controls {
+  display: flex; 
+  align-items: center;
+  gap: 0.25rem;
+}
+.project-controls .chevron { transition: transform var(--transition-speed); }
+.project-controls .chevron.rotate { transform: rotate(180deg); }
+
+/* Project budget progress bar */
+.project-budget-info {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  display: flex;
+  justify-content: space-between;
+}
+.progress-bar-container {
+  width: 100%;
+  background-color: var(--border-primary);
+  border-radius: 9999px;
+  height: 8px;
+  margin-top: 0.5rem;
+  overflow: hidden;
+}
+.progress-bar {
+  height: 100%;
+  width: 0%;
+  background-color: var(--accent-primary);
+  border-radius: 9999px;
+  transition: width 0.5s ease;
+}
+.progress-bar.over-budget {
+  background-color: var(--danger);
+}
+
+/* Task list container and items */
+.task-list-container {
+  padding: 0 1.5rem 1.5rem;
+  display: flex; 
+  flex-direction: column;
+  gap: 1rem;
+}
+.task-item {
+  background-color: var(--bg-primary);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  display: flex; 
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: background-color var(--transition-speed);
+}
+.dark .task-item {
+  background-color: rgba(31, 41, 55, 0.5);
+}
+.task-item:hover {
+  background-color: var(--bg-secondary);
+}
+.dark .task-item:hover {
+  background-color: var(--bg-tertiary);
+}
+.task-details { flex-grow: 1; }
+.task-details h4 { font-weight: 700; margin: 0; }
+.task-controls {
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between;
+  width: 100%;
+}
+.timer {
+  font-family: monospace;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+.task-controls .buttons {
+  display: flex; 
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: 1rem;
+}
+
+/* Responsive adjustments for task items */
+@media (min-width: 640px) {
+  .task-item {
+    flex-direction: row; 
+    align-items: center; 
+    justify-content: space-between;
+  }
+  .task-controls { width: auto; }
+}
+
+/* Tags and context menus */
+.tags {
+  margin-top: 0.5rem;
+  display: flex; 
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.tag {
+  background-color: var(--tag-bg);
+  color: var(--tag-text);
+  font-size: 0.75rem; 
+  font-weight: 600;
+  padding: 0.125rem 0.625rem;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.tag:hover {
+  filter: brightness(0.95);
+}
+.menu-container { position: relative; }
+.menu-dropdown {
+  position: absolute; 
+  right: 0;
+  margin-top: 0.5rem;
+  width: 12rem;
+  background-color: var(--bg-primary);
+  border-radius: 0.375rem;
+  box-shadow: var(--shadow-lg);
+  z-index: 20;
+  border: 1px solid var(--border-primary);
+  overflow: hidden;
+}
+.menu-dropdown a {
+  display: block;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: background-color var(--transition-speed);
+}
+.menu-dropdown a:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--accent-primary);
+}
+.menu-dropdown a.danger { color: var(--danger); }
+.menu-divider {
+  border: 0;
+  height: 1px;
+  background-color: var(--border-primary);
+  margin: 0.5rem 0;
+}
+
+/* --- Drag and Drop Styles --- */
+
+/* Style for the item being dragged */
+.sortable-ghost {
+  opacity: 0.4;
+  background: var(--accent-secondary);
+}
+
+/* Style for the drag handle on project cards */
+/* Only add the grab cursor to active, non-completed projects */
+.project-card:not(.completed) .project-header {
+  cursor: grab;
+}
+
+/* Style for the drag handle on task items */
+.task-item {
+  cursor: grab; /* Indicates the task item is draggable */
+}
+
+/* Z-index fix for project card menus */
+.project-card {
+  position: relative; /* Required for z-index to take effect */
+}
+
+.project-card.menu-open {
+  z-index: 2; /* Lifts the card with the open menu above others */
+}
+
+
+/* --- 7. MODALS --- */
+
+/* Base modal styles */
+.modal {
+  position: fixed; 
+  inset: 0;
+  background-color: var(--bg-modal);
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
+  z-index: 50; 
+  padding: 1rem;
+}
+.modal-content {
+  background-color: var(--bg-primary);
+  border-radius: 0.5rem;
+  box-shadow: var(--shadow-lg);
+  padding: 1.5rem;
+  width: 100%; 
+  max-width: 28rem;
+  border: 1px solid var(--border-primary);
+}
+.modal-header {
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.modal-header .feather-x {
+  font-size: 2rem; 
+  line-height: 1;
+  background: none;
+  color: var(--text-secondary);
+  font-weight: 300;
+}
+.modal-content h2 {
+  font-size: 1.25rem; 
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+}
+.modal-content p {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin: 0 0 1.5rem;
+}
+
+/* Modal buttons */
+.modal-buttons {
+  display: flex; 
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+.modal-buttons button {
+  padding: 0.5rem 1rem; 
+  border-radius: 0.375rem;
+  font-weight: 700;
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  width: auto;
+}
+.modal-buttons button:hover {
+  filter: brightness(0.95);
+}
+.dark .modal-buttons button {
+  background-color: #4b5563;
+  color: #f9fafb;
+}
+.modal-buttons button[type="submit"],
+.modal-buttons button#link-sheet-btn {
+  background-color: var(--accent-primary);
+  color: var(--text-on-accent);
+}
+.modal-buttons button.danger {
+  background-color: var(--danger); 
+  color: white;
+}
+.modal-buttons button.danger:hover {
+  background-color: var(--danger-hover);
+}
+/* Settings & Log modal close icon */
+.modal-header #close-modal,
+.modal-header #close-settings-modal {
+  font-size: 2rem;
+  line-height: 1;
+  background: none;
+  color: var(--text-secondary);
+  font-weight: 300;
+  padding: 0 0.5rem; /* Improves click area */
+}
+
+/* Specific Modal Styles: Log Modal */
+#log-modal .modal-content {
+  max-width: 50rem; 
+  max-height: 80vh;
+  display: flex; 
+  flex-direction: column;
+}
+#modal-body { flex-grow: 1; overflow-y: auto; }
+#modal-footer {
+  margin-top: 1rem; 
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-primary);
+}
+.log-table {
+  width: 100%; 
+  text-align: left;
+  font-size: 0.875rem;
+  border-collapse: collapse;
+}
+.log-table th, .log-table td {
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border-primary);
+}
+.log-table thead {
+  position: sticky; 
+  top: 0;
+  background-color: var(--bg-primary);
+}
+.log-footer {
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center;
+}
+.log-footer p {
+  font-weight: 700; 
+  font-size: 1rem;
+  color: var(--accent-primary); 
+  margin: 0;
+}
+.log-footer button {
+  background-color: var(--success); 
+  color: white;
+  font-weight: 700;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+}
+
+/* Specific Modal Styles: Google Sheet Sync */
+.url-input { position: relative; }
+#sheet-status {
+  position: absolute;
+  right: 0.75rem; 
+  top: 50%;
+  transform: translateY(-50%);
+  height: 1rem; 
+  width: 1rem;
+  border-radius: 9999px;
+  background-color: #9ca3af;
+}
+#sheet-status.linked { background-color: #22c55e; }
+
+/* Specific Modal Styles: Settings */
+#settings-modal .modal-content {
+  max-width: 40rem;
+}
+#settings-body h3 {
+  margin-top: 0;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+#settings-body .menu-divider {
+  margin: 2rem 0;
+}
+.setting-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+.setting-label h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.setting-label p {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0.25rem 0 0;
+}
+#google-sheet-modal-btn {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+}
+.color-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.color-swatch {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid var(--bg-primary);
+  box-shadow: 0 0 0 1px var(--border-secondary), var(--shadow-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.color-swatch:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 0 2px var(--border-secondary), var(--shadow-lg);
+}
+.color-swatch.active {
+  box-shadow: 0 0 0 3px var(--border-accent-focus), var(--shadow-lg);
+  transform: scale(1.1);
+}
+
+/* Toggle Switch Styles (for Settings) */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 28px;
+}
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--border-secondary);
+  transition: .4s;
+  border-radius: 28px;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+input:checked + .slider {
+  background-color: var(--accent-primary);
+}
+input:checked + .slider:before {
+  transform: translateX(22px);
+}
+
+/* Specific Modal Styles: Idle Modal */
+.idle-buttons {
+  justify-content: space-between;
+}
+#idle-discard-btn {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+#idle-keep-btn {
+  background-color: var(--accent-primary);
+  color: var(--text-on-accent);
+}
+
+/* Global Timer Bar (bottom of screen) */
+#global-timer-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border-primary);
+  padding: 0.75rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 -5px 15px rgba(0,0,0,0.05);
+  z-index: 100;
+}
+#global-timer-info {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+#global-timer-info .separator {
+  margin: 0 0.5rem;
+}
+#global-timer-info #global-timer-project {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+#global-timer-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+#global-timer-time {
+  font-family: monospace;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+#global-timer-stop-btn {
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+}
+#global-timer-stop-btn:hover {
+  filter: brightness(1.2);
+}
+#global-timer-prev,
+#global-timer-next {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+#global-timer-prev:hover,
+#global-timer-next:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+#global-timer-counter {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  min-width: 35px;
+  text-align: center;
+}
+
+
+/* --- 8. UTILITIES & ANIMATIONS --- */
+
+/* Helper class to hide elements */
+.hidden {
+  display: none !important;
+}
+
+/* Feather icon customization */
+.feather {
+  stroke-width: 1.5;
+  vertical-align: middle;
+}
+
+/* Loading spinner for buttons */
+.start-stop-btn.loading {
+    color: transparent !important; /* Hide the Start/Stop text */
+    pointer-events: none; /* Prevent multiple clicks */
+    position: relative;
+}
+.start-stop-btn.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 16px;
+    height: 16px;
+    margin-top: -8px;
+    margin-left: -8px;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* --- Two-Column Layout for Notes --- */
+.main-layout {
+  display: flex;
+  flex-direction: row; /* Changed from column */
+  gap: 2rem;
+  align-items: flex-start;
+}
+
+#project-list-container {
+  flex-grow: 1; /* Project list takes up available space */
+}
+
+/* --- Notes View Styles --- */
+#notes-view {
+  width: 450px; /* Fixed width for the notes panel */
+  flex-shrink: 0;
+  background-color: var(--bg-secondary);
+  border-radius: 0.75rem;
+  border: 1px solid var(--border-primary);
+  box-shadow: var(--shadow-md);
+  position: sticky; /* Keeps it in view on scroll */
+  top: 6rem;
+  max-height: calc(100vh - 8rem);
+  display: flex;
+  flex-direction: column;
+}
+
+.notes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border-primary);
+}
+.notes-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+#close-notes-view {
+  background: none;
+  padding: 0.25rem;
+  border-radius: 50%;
+}
+
+#notes-list {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 1rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.note-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.note-meta {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.note-content {
+  background-color: var(--bg-primary);
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-primary);
+}
+/* Styles for Quill content */
+.note-content p, .note-content ol, .note-content ul, .note-content h1, .note-content h2, .note-content h3 {
+  margin: 0;
+  padding: 0;
+}
+.note-content ol, .note-content ul {
+  padding-left: 1.5rem; /* Indent lists */
+}
+
+/* Notes Editor Styles */
+.notes-editor-container {
+  border-top: 1px solid var(--border-primary);
+  padding: 1rem;
+}
+#notes-toolbar {
+  border-bottom: 1px solid var(--border-primary);
+}
+.ql-toolbar {
+  border: 1px solid var(--border-secondary) !important;
+  border-radius: 0.375rem 0.375rem 0 0;
+}
+.ql-container.ql-snow {
+  border: 1px solid var(--border-secondary) !important;
+  border-top: none !important;
+  border-radius: 0 0 0.375rem 0.375rem;
+  min-height: 120px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+#add-note-btn {
+  width: 100%;
+  margin-top: 1rem;
+  background-color: var(--accent-primary);
+  color: var(--text-on-accent);
+  font-weight: 700;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+}

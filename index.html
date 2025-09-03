@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Time Nerd</title>
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="draggable-bar"></div>
+
+    <div class="top-banner">
+        <div class="search-input-wrapper">
+            <i data-feather="search"></i>
+            <input type="text" id="search-input" placeholder="Search projects, tasks, customers...">
+            <button id="clear-search-btn" class="hidden" title="Clear search"><i data-feather="x"></i></button>
+        </div>
+
+        <div class="top-banner-controls">
+            <button id="add-project-btn">Add Project</button>
+            <button id="theme-btn" title="Toggle Theme"></button>
+            <div id="settings-menu-container">
+                <button id="settings-btn" title="Settings">
+                    <i data-feather="more-vertical"></i>
+                </button>
+                <div id="settings-dropdown" class="menu-dropdown hidden">
+                    <a href="#" id="app-settings-btn">Settings</a>
+                    <a href="#" id="archived-projects-btn">Archived Projects</a>
+                    <hr class="menu-divider">
+                    <a href="#" id="import-btn">Import Backup</a>
+                    <a href="#" id="export-btn">Export Backup</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="main-layout">
+            <div id="project-list-container">
+                <div id="active-project-list"></div>
+                <div id="project-list"></div>
+            </div>
+
+            <div id="notes-view" class="hidden">
+                <div class="notes-header">
+                    <h3 id="notes-task-title">Task Notes</h3>
+                    <button id="close-notes-view" title="Close Notes"><i data-feather="x"></i></button>
+                </div>
+                <div id="notes-list">
+                    </div>
+                <div class="notes-editor-container">
+                    <div id="notes-toolbar">
+                        <span class="ql-formats">
+                            <select class="ql-header"></select>
+                            <button class="ql-bold"></button>
+                            <button class="ql-italic"></button>
+                            <button class="ql-underline"></button>
+                            <button class="ql-strike"></button>
+                        </span>
+                        <span class="ql-formats">
+                            <button class="ql-list" value="ordered"></button>
+                            <button class="ql-list" value="bullet"></button>
+                            <button class="ql-blockquote"></button>
+                        </span>
+                        <span class="ql-formats">
+                            <button class="ql-clean"></button>
+                        </span>
+                    </div>
+                    <div id="notes-editor"></div>
+                    <button id="add-note-btn">Add Note</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="global-timer-bar" class="hidden">
+        <div id="global-timer-info">
+            <span id="global-timer-project">Project Name</span>
+            <span class="separator">-</span>
+            <span id="global-timer-task">Task Name</span>
+        </div>
+
+        <div id="global-timer-controls">
+            <button id="global-timer-prev" class="hidden" title="Previous Task"><i data-feather="chevron-left"></i></button>
+            <span id="global-timer-counter" class="hidden">1 / 1</span>
+            <button id="global-timer-next" class="hidden" title="Next Task"><i data-feather="chevron-right"></i></button>
+            <span id="global-timer-time">00:00:00</span>
+            <button id="global-timer-stop-btn" title="Stop Timer"><i data-feather="stop-circle"></i></button>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button id="close-settings-modal">&times;</button>
+            </div>
+            <div id="settings-body">
+                <h3>Accent Color</h3>
+                <p>Choose a color to personalize your experience.</p>
+                <div class="color-swatches"></div>
+
+                <hr class="menu-divider">
+
+                <h3>General</h3>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <h4>Allow concurrent active tasks</h4>
+                        <p>Run multiple task timers at the same time.</p>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="concurrent-tasks-toggle">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <hr class="menu-divider">
+
+                <h3>Integrations</h3>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <h4>Google Sheet Sync</h4>
+                        <p>Link a Google Sheet to automatically log time entries.</p>
+                    </div>
+                    <div class="setting-control">
+                        <button id="google-sheet-modal-btn">Setup Sync</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="google-sheet-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Google Sheet Sync</h2>
+            <div class="form-group">
+                <div class="url-input">
+                    <input type="text" id="google-sheet-url" placeholder="Google Sheet URL">
+                    <span id="sheet-status" title="Not Linked"></span>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button type="button" id="cancel-sheet-link">Cancel</button>
+                <button id="link-sheet-btn">Link Sheet</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="project-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 id="project-modal-title">Add New Project</h2>
+            <form id="project-form">
+                <input type="hidden" id="project-id">
+                <div class="form-group">
+                    <h4 class="project-name-header">Project Name</h4>
+                    <input type="text" id="project-name" placeholder="Project Name" required>
+                    <h4 class="project-customer-header">Customer (Optional)</h4>
+                    <input type="text" id="project-customer" placeholder="Customer (Optional)" list="customer-list">
+                    <h4 class="budget-header">Budget (in hours, optional)</h4>
+                    <input type="number" id="project-budget" placeholder="Budget (in hours, optional)" min="0" step="any">
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" id="cancel-project-form">Cancel</button>
+                    <button type="submit">Save Project</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="add-task-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 id="add-task-modal-title">Add New Task</h2>
+            <form id="add-task-modal-form">
+                <input type="hidden" id="add-task-project-id">
+                <div class="form-group">
+                    <h4 class="task-name-header">Task Name</h4>
+                    <input type="text" id="modal-task-name" placeholder="Task Name" required>
+                    <h4 class="task-tags-header">Tags (Comma-separated, optional)</h4>
+                    <input type="text" id="modal-task-tags" placeholder="Tags (comma-separated)" list="tag-list">
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" id="cancel-add-task">Cancel</button>
+                    <button type="submit">Add Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="edit-task-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Edit Task</h2>
+            <form id="edit-task-form">
+                <input type="hidden" id="edit-task-id">
+                <input type="hidden" id="edit-task-project-id">
+                <div class="form-group">
+                    <h4 class="task-name-header">Task Name</h4>
+                    <input type="text" id="edit-task-name" placeholder="Task Name" required>
+                    <h4 class="task-tags-header">Tags (Comma-separated, optional)</h4>
+                    <input type="text" id="edit-task-tags" placeholder="Tags (comma-separated)" list="tag-list">
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" id="cancel-edit-task">Cancel</button>
+                    <button type="submit">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="log-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Time Logs</h2>
+                <button id="close-modal">&times;</button>
+            </div>
+            <div id="modal-body"></div>
+            <div id="modal-footer"></div>
+        </div>
+    </div>
+
+    <div id="confirm-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 id="confirm-title">Confirm Action</h2>
+            <p id="confirm-message">Are you sure?</p>
+            <div class="modal-buttons">
+                <button id="cancel-delete">Cancel</button>
+                <button id="confirm-delete" class="danger">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="idle-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>You've been idle</h2>
+            <p id="idle-message">A timer was running while you were away. What would you like to do with the last <span id="idle-duration">5 minutes</span> of tracked time?</p>
+            <div class="modal-buttons idle-buttons">
+                <button id="idle-discard-btn">Discard Time</button>
+                <button id="idle-keep-btn">Keep Time</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="./node_modules/jquery/dist/jquery.min.js"></script>
+    <script src="./node_modules/lodash/lodash.min.js"></script>
+    
+    <script src="./assets/confetti.min.js"></script>
+    <script src="./assets/feather.min.js"></script>
+    <script src="./assets/sortable.min.js"></script>
+    <script src="renderer.js"></script>
+    <script>
+        feather.replace()
+    </script>
+</body>
+</html>
