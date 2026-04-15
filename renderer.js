@@ -25,7 +25,6 @@ $(() => {
     const $idleModal = $('#idle-modal');
     const $logModal = $('#log-modal');
     const $confirmModal = $('#confirm-modal');
-    const $googleSheetModal = $('#google-sheet-modal');
     const $settingsModal = $('#settings-modal');
     const $addTaskModal = $('#add-task-modal');
     const $colorSwatchesContainer = $('.color-swatches');
@@ -325,11 +324,8 @@ $(() => {
         $('#settings-btn').on('click', () => $('#settings-dropdown').toggleClass('hidden'));
         $('#export-btn').on('click', handleExport);
         $('#import-btn').on('click', handleImport);
-        $('#google-sheet-modal-btn').on('click', openGoogleSheetModal);
         $('#concurrent-tasks-toggle').on('change', handleConcurrentToggle);
         $('#include-notes-toggle').on('change', handleIncludeNotesToggle);
-        $('#link-sheet-btn').on('click', handleLinkSheet);
-        $('#cancel-sheet-link').on('click', closeGoogleSheetModal);
         $('#close-modal').on('click', () => $logModal.addClass('hidden'));
         $('#confirm-delete').on('click', handleConfirm);
         $('#cancel-delete').on('click', closeConfirmModal);
@@ -524,21 +520,6 @@ $(() => {
             clearInterval(timers[task.id]);
             delete timers[task.id];
             stopIdleDetection();
-            
-            // Prepare data for Google Sheet sync.
-            const rowData = [
-                project.name, task.name, project.customer || "N/A",
-                task.tags.join(", "), formatDate(new Date(logEntry.start)),
-                new Date(logEntry.start).toLocaleTimeString(), formatDate(new Date(logEntry.end)),
-                new Date(logEntry.end).toLocaleTimeString(), formatTime(logEntry.end - logEntry.start)
-            ];
-
-            // Sync if online, otherwise queue for later.
-            if (navigator.onLine) {
-                await window.electronAPI.appendToSheet(rowData);
-            } else {
-                await queueForSync(rowData);
-            }
         }
         
         saveData();
@@ -1034,38 +1015,6 @@ $(() => {
         }
     }
     
-    function openGoogleSheetModal() {
-        $('#settings-dropdown').addClass('hidden');
-        $googleSheetModal.removeClass('hidden');
-    }
-
-    function closeGoogleSheetModal() {
-        $googleSheetModal.addClass('hidden');
-    }
-    
-    async function handleLinkSheet() {
-        const url = $('#google-sheet-url').val().trim();
-        if (!url) return alert('Please enter a Google Sheet URL.');
-        await window.electronAPI.setSheetUrl(url);
-        const result = await window.electronAPI.linkGoogleSheet();
-        if (result.success) {
-            alert('Successfully linked to Google Sheet!');
-            await checkSheetStatus();
-            closeGoogleSheetModal();
-        } else {
-            alert(`Failed to link sheet: ${result.error || 'Authorization failed or was cancelled.'}`);
-        }
-    }
-
-    /**
-     * Checks the Google Sheet URL and updates the status indicator.
-     */
-    async function checkSheetStatus() {
-        const url = await window.electronAPI.getSheetUrl();
-        $('#google-sheet-url').val(url);
-        $('#sheet-status').toggleClass('linked', !!url).attr('title', url ? 'Linked' : 'Not Linked');
-    }
-
     /**
      * Exports a single project's time logs to a CSV file.
      */
@@ -1611,30 +1560,6 @@ $(() => {
         }, 250);
     }
 
-    async function queueForSync(rowData) {
-        const queue = await window.electronAPI.getPendingSyncs();
-        queue.push(rowData);
-        await window.electronAPI.setPendingSyncs(queue);
-    }
-
-    /**
-     * Processes any pending syncs in the queue.
-     */
-    async function processSyncQueue() {
-        let queue = await window.electronAPI.getPendingSyncs();
-        if (_.isEmpty(queue)) return;
-        
-        for (const rowData of queue) {
-            const result = await window.electronAPI.appendToSheet(rowData);
-            if (!result.success) {
-                console.error('Failed to sync an entry, stopping queue processing.', result.error);
-                return; // Stop if one fails to maintain order.
-            }
-        }
-        
-        await window.electronAPI.setPendingSyncs([]); // Clear the queue on success.
-    }
-
     /**
      * Finds and returns an array of all currently running tasks.
      */
@@ -1679,13 +1604,7 @@ $(() => {
      * Handles changes in the network connection status.
      */
     function handleOnlineStatusChange() {
-        const isOnline = navigator.onLine;
-        // Visually disable the Google Sheet sync button if offline.
-        $('#google-sheet-modal-btn').css({ opacity: isOnline ? 1 : 0.5, pointerEvents: isOnline ? 'auto' : 'none' })
-            .attr('title', isOnline ? '' : 'Google Sheet Sync is disabled while offline');
-        if (isOnline) {
-            processSyncQueue();
-        }
+        // No-op for now.
     }
 
     // --- 9. START APPLICATION ---

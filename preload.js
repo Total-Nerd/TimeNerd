@@ -16,15 +16,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   importData: () => ipcRenderer.invoke('import-data'),
   
   // Idle Time
-  getSystemIdleTime: () => ipcRenderer.invoke('get-system-idle-time'),
-  
-  // Google Sheets
-  getSheetUrl: () => ipcRenderer.invoke('get-sheet-url'),
-  setSheetUrl: (url) => ipcRenderer.invoke('set-sheet-url', url),
-  linkGoogleSheet: () => ipcRenderer.invoke('link-google-sheet'),
-  appendToSheet: (data) => ipcRenderer.invoke('append-to-sheet', data),
-
-  // Expose sync queue handlers
-  getPendingSyncs: () => ipcRenderer.invoke('get-pending-syncs'),
-  setPendingSyncs: (queue) => ipcRenderer.invoke('set-pending-syncs', queue)
+  getSystemIdleTime: () => ipcRenderer.invoke('get-system-idle-time')
 });
