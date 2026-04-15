@@ -36,6 +36,7 @@ $(() => {
     let projects = []; // The main array holding all project and task data.
     let timers = {}; // An object to store active setInterval IDs for running tasks.
     let allowConcurrentTimers = localStorage.getItem('allow_concurrent_timers') === 'true';
+    let includeNotesInExport = localStorage.getItem('include_notes_in_export') === 'true';
     let runningTasks = []; // A cache of all currently running tasks for the global timer bar.
     let globalTimerIndex = 0; // The index of the currently displayed task in the global timer bar.
     let actionToConfirm = null; // A function to be executed when a confirmation modal is approved.
@@ -324,6 +325,7 @@ $(() => {
         $('#import-btn').on('click', handleImport);
         $('#google-sheet-modal-btn').on('click', openGoogleSheetModal);
         $('#concurrent-tasks-toggle').on('change', handleConcurrentToggle);
+        $('#include-notes-toggle').on('change', handleIncludeNotesToggle);
         $('#link-sheet-btn').on('click', handleLinkSheet);
         $('#cancel-sheet-link').on('click', closeGoogleSheetModal);
         $('#close-modal').on('click', () => $logModal.addClass('hidden'));
@@ -803,6 +805,7 @@ $(() => {
             e.preventDefault();
             // Set the toggle to its correct state before opening.
             $('#concurrent-tasks-toggle').prop('checked', allowConcurrentTimers);
+            $('#include-notes-toggle').prop('checked', includeNotesInExport);
             $settingsModal.removeClass('hidden');
             $('#settings-dropdown').addClass('hidden');
         });
@@ -818,6 +821,11 @@ $(() => {
     function handleConcurrentToggle(e) {
         allowConcurrentTimers = $(e.currentTarget).is(':checked');
         localStorage.setItem('allow_concurrent_timers', allowConcurrentTimers);
+    }
+    
+    function handleIncludeNotesToggle(e) {
+        includeNotesInExport = $(e.currentTarget).is(':checked');
+        localStorage.setItem('include_notes_in_export', includeNotesInExport);
     }
     
     // Defines the icons for the theme toggle button.
@@ -1074,6 +1082,7 @@ $(() => {
             'Project Budget (Hours)', 'Task % of Budget',
             'Start Date', 'Start Time', 'End Date', 'End Time', 'Duration (HH:MM:SS)'
         ];
+        if (includeNotesInExport) headers.push('Notes');
         
         // Helper function to safely escape a string for CSV format.
         const escapeCsvCell = (cell) => {
@@ -1094,15 +1103,49 @@ $(() => {
                 budgetPercentage = `${percentage.toFixed(2)}%`;
             }
 
-            return _.map(task.logs, log => [
-                project.name, task.name, project.customer || 'N/A', task.tags.join(', '),
-                task.createdAt ? formatDate(new Date(task.createdAt)) : 'N/A',
-                project.budget > 0 ? project.budget : 'N/A',
-                budgetPercentage,
-                formatDate(new Date(log.start)), new Date(log.start).toLocaleTimeString(),
-                formatDate(new Date(log.end)), new Date(log.end).toLocaleTimeString(),
-                formatTime(log.end - log.start)
-            ]);
+            const taskEvents = [];
+            
+            _.forEach(task.logs, log => {
+                taskEvents.push({ type: 'log', time: new Date(log.start).getTime(), log });
+            });
+
+            if (includeNotesInExport && task.notes && task.notes.length > 0) {
+                _.forEach(task.notes, note => {
+                    taskEvents.push({ type: 'note', time: new Date(note.timestamp).getTime(), note });
+                });
+            }
+
+            taskEvents.sort((a, b) => a.time - b.time);
+
+            return _.map(taskEvents, event => {
+                const baseRow = [
+                    project.name, task.name, project.customer || 'N/A', task.tags.join(', '),
+                    task.createdAt ? formatDate(new Date(task.createdAt)) : 'N/A',
+                    project.budget > 0 ? project.budget : 'N/A',
+                    budgetPercentage
+                ];
+
+                if (event.type === 'log') {
+                    baseRow.push(
+                        formatDate(new Date(event.log.start)), new Date(event.log.start).toLocaleTimeString(),
+                        formatDate(new Date(event.log.end)), new Date(event.log.end).toLocaleTimeString(),
+                        formatTime(event.log.end - event.log.start)
+                    );
+                    if (includeNotesInExport) baseRow.push('');
+                } else if (event.type === 'note') {
+                    baseRow.push(
+                        formatDate(new Date(event.note.timestamp)),
+                        new Date(event.note.timestamp).toLocaleTimeString(),
+                        '', '', ''
+                    );
+                    if (includeNotesInExport) {
+                        const text = $('<div>').html(event.note.content).text().trim();
+                        const noteDate = new Date(event.note.timestamp).toLocaleString();
+                        baseRow.push(`[${noteDate}] ${text}`);
+                    }
+                }
+                return baseRow;
+            });
         });
 
         // Process each row to escape its cells before joining.
@@ -1125,6 +1168,7 @@ $(() => {
         }
 
         const headers = ['Project', 'Task', 'Customer', 'Tags', 'Task Created', 'Start Date', 'Start Time', 'End Date', 'End Time', 'Duration (HH:MM:SS)'];
+        if (includeNotesInExport) headers.push('Notes');
         
         // Helper function to safely escape a string for CSV format.
         const escapeCsvCell = (cell) => {
@@ -1135,15 +1179,47 @@ $(() => {
             }
             return cellString;
         };
+        
+        const taskEvents = [];
+        _.forEach(task.logs, log => {
+            taskEvents.push({ type: 'log', time: new Date(log.start).getTime(), log });
+        });
 
-        // Map over the logs of only the specified task.
-        const rows = _.map(task.logs, log => [
-            project.name, task.name, project.customer || 'N/A', task.tags.join(', '),
-            task.createdAt ? formatDate(new Date(task.createdAt)) : 'N/A',
-            formatDate(new Date(log.start)), new Date(log.start).toLocaleTimeString(),
-            formatDate(new Date(log.end)), new Date(log.end).toLocaleTimeString(),
-            formatTime(log.end - log.start)
-        ]);
+        if (includeNotesInExport && task.notes && task.notes.length > 0) {
+            _.forEach(task.notes, note => {
+                taskEvents.push({ type: 'note', time: new Date(note.timestamp).getTime(), note });
+            });
+        }
+        taskEvents.sort((a, b) => a.time - b.time);
+
+        // Map over the events of the specified task.
+        const rows = _.map(taskEvents, event => {
+            const row = [
+                project.name, task.name, project.customer || 'N/A', task.tags.join(', '),
+                task.createdAt ? formatDate(new Date(task.createdAt)) : 'N/A'
+            ];
+
+            if (event.type === 'log') {
+                row.push(
+                    formatDate(new Date(event.log.start)), new Date(event.log.start).toLocaleTimeString(),
+                    formatDate(new Date(event.log.end)), new Date(event.log.end).toLocaleTimeString(),
+                    formatTime(event.log.end - event.log.start)
+                );
+                if (includeNotesInExport) row.push('');
+            } else if (event.type === 'note') {
+                row.push(
+                    formatDate(new Date(event.note.timestamp)),
+                    new Date(event.note.timestamp).toLocaleTimeString(),
+                    '', '', ''
+                );
+                if (includeNotesInExport) {
+                    const text = $('<div>').html(event.note.content).text().trim();
+                    const noteDate = new Date(event.note.timestamp).toLocaleString();
+                    row.push(`[${noteDate}] ${text}`);
+                }
+            }
+            return row;
+        });
 
         const csvRows = [headers, ...rows].map(row => row.map(escapeCsvCell).join(','));
         let csvContent = csvRows.join('\n');
