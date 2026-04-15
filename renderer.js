@@ -44,6 +44,7 @@ $(() => {
     let idleInfo = { timer: null, detectedAt: null, activeTaskInfo: null };
     let currentFilter = ''; // The current value of the search input.
     let quill; // To hold the Quill editor instance
+    let activeNotesProjectId = null; // To track which project's notes are being viewed
     let activeNotesTaskId = null; // To track which task's notes are being viewed
 
     // --- Color Palettes ---
@@ -197,6 +198,7 @@ $(() => {
                         <div class="menu-dropdown hidden">
                             <a href="#" class="menu-item" data-action="edit">Edit</a>
                             <a href="#" class="menu-item" data-action="export">Export CSV</a>
+                            <a href="#" class="menu-item" data-action="notes">Notes</a>
                             <a href="#" class="menu-item" data-action="complete">Project Complete</a>
                             <a href="#" class="menu-item" data-action="complete-and-archive">Complete & Archive</a>
                             <a href="#" class="menu-item danger" data-action="delete">Delete</a>
@@ -438,6 +440,7 @@ $(() => {
         if (action === 'edit') openEditModal(type, projectId, taskId);
         if (action === 'delete') openConfirmModal({ type, projectId, taskId });
         if (action === 'export') exportProjectToCSV(projectId);
+        if (action === 'notes') openNotesView(projectId);
         if (action === 'complete') toggleProjectComplete(projectId);
         if (action === 'archive') archiveProject(projectId);
         if (action === 'complete-and-archive') completeAndArchiveProject(projectId);
@@ -913,7 +916,8 @@ $(() => {
         } else { // Otherwise, create a new project.
             projects.unshift({
                 id: Date.now(), name, customer, tasks: [], budget,
-                isComplete: false, isArchived: false, createdAt: new Date().toISOString()
+                isComplete: false, isArchived: false, createdAt: new Date().toISOString(),
+                notes: []
             });
         }
         
@@ -1080,7 +1084,7 @@ $(() => {
 
         // --- Add the new budget headers ---
         const headers = [
-            'Project', 'Task', 'Customer', 'Tags', 'Task Created', 
+            'Project', 'Customer', 'Type', 'Task', 'Tags', 'Created Date', 'Created Time', 
             'Project Budget (Hours)', 'Task % of Budget',
             'Start Date', 'Start Time', 'End Date', 'End Time', 'Duration (HH:MM:SS)'
         ];
@@ -1096,7 +1100,7 @@ $(() => {
             return cellString;
         };
 
-        const rows = _.flatMap(project.tasks, task => {
+        let rows = _.flatMap(project.tasks, task => {
             // --- Calculate the budget percentage for the task ---
             let budgetPercentage = 'N/A';
             if (project.budget > 0) {
@@ -1106,6 +1110,10 @@ $(() => {
             }
 
             const taskEvents = [];
+            
+            if (task.createdAt) {
+                taskEvents.push({ type: 'task-created', time: new Date(task.createdAt).getTime() });
+            }
             
             _.forEach(task.logs, log => {
                 taskEvents.push({ type: 'log', time: new Date(log.start).getTime(), log });
@@ -1120,9 +1128,22 @@ $(() => {
             taskEvents.sort((a, b) => a.time - b.time);
 
             return _.map(taskEvents, event => {
+                const taskCreatedDate = task.createdAt ? formatDate(new Date(task.createdAt)) : 'N/A';
+                const taskCreatedTime = task.createdAt ? new Date(task.createdAt).toLocaleTimeString() : 'N/A';
+                
+                let createdDateStr = taskCreatedDate;
+                let createdTimeStr = taskCreatedTime;
+                
+                if (event.type === 'note') {
+                    createdDateStr = formatDate(new Date(event.note.timestamp));
+                    createdTimeStr = new Date(event.note.timestamp).toLocaleTimeString();
+                }
+
                 const baseRow = [
-                    project.name, task.name, project.customer || 'N/A', task.tags.join(', '),
-                    task.createdAt ? formatDate(new Date(task.createdAt)) : 'N/A',
+                    project.name, project.customer || 'N/A',
+                    event.type === 'log' ? 'Task Log' : (event.type === 'note' ? 'Task Note' : 'Task Created'),
+                    task.name, task.tags.join(', '),
+                    createdDateStr, createdTimeStr,
                     project.budget > 0 ? project.budget : 'N/A',
                     budgetPercentage
                 ];
@@ -1135,20 +1156,39 @@ $(() => {
                     );
                     if (includeNotesInExport) baseRow.push('');
                 } else if (event.type === 'note') {
-                    baseRow.push(
-                        formatDate(new Date(event.note.timestamp)),
-                        new Date(event.note.timestamp).toLocaleTimeString(),
-                        '', '', ''
-                    );
+                    baseRow.push('', '', '', '', '');
                     if (includeNotesInExport) {
                         const text = $('<div>').html(event.note.content).text().trim();
                         const noteDate = new Date(event.note.timestamp).toLocaleString();
                         baseRow.push(`[${noteDate}] ${text}`);
                     }
+                } else if (event.type === 'task-created') {
+                    baseRow.push('', '', '', '', '');
+                    if (includeNotesInExport) baseRow.push('');
                 }
                 return baseRow;
             });
         });
+
+        // Combine project notes
+        if (includeNotesInExport && project.notes && project.notes.length > 0) {
+            const projectNoteRows = _.map(_.sortBy(project.notes, 'timestamp'), note => {
+                const noteCreatedDate = formatDate(new Date(note.timestamp));
+                const noteCreatedTime = new Date(note.timestamp).toLocaleTimeString();
+                
+                const baseRow = [
+                    project.name, project.customer || 'N/A', 'Project Note', 'N/A', 'N/A',
+                    noteCreatedDate, noteCreatedTime,
+                    project.budget > 0 ? project.budget : 'N/A', 'N/A',
+                    '', '', '', '', ''
+                ];
+                const text = $('<div>').html(note.content).text().trim();
+                const noteDate = new Date(note.timestamp).toLocaleString();
+                baseRow.push(`[${noteDate}] ${text}`);
+                return baseRow;
+            });
+            rows = projectNoteRows.concat(rows);
+        }
 
         // Process each row to escape its cells before joining.
         const csvRows = [headers, ...rows].map(row => row.map(escapeCsvCell).join(','));
@@ -1169,7 +1209,11 @@ $(() => {
             return;
         }
 
-        const headers = ['Project', 'Task', 'Customer', 'Tags', 'Task Created', 'Start Date', 'Start Time', 'End Date', 'End Time', 'Duration (HH:MM:SS)'];
+        const headers = [
+            'Project', 'Customer', 'Type', 'Task', 'Tags', 'Created Date', 'Created Time', 
+            'Project Budget (Hours)', 'Task % of Budget',
+            'Start Date', 'Start Time', 'End Date', 'End Time', 'Duration (HH:MM:SS)'
+        ];
         if (includeNotesInExport) headers.push('Notes');
         
         // Helper function to safely escape a string for CSV format.
@@ -1182,7 +1226,20 @@ $(() => {
             return cellString;
         };
         
+        // --- Calculate the budget percentage for the task ---
+        let budgetPercentage = 'N/A';
+        if (project.budget > 0) {
+            const taskTotalHours = task.totalTime / 3600000;
+            const percentage = (taskTotalHours / project.budget) * 100;
+            budgetPercentage = `${percentage.toFixed(2)}%`;
+        }
+
         const taskEvents = [];
+        
+        if (task.createdAt) {
+            taskEvents.push({ type: 'task-created', time: new Date(task.createdAt).getTime() });
+        }
+        
         _.forEach(task.logs, log => {
             taskEvents.push({ type: 'log', time: new Date(log.start).getTime(), log });
         });
@@ -1196,31 +1253,45 @@ $(() => {
 
         // Map over the events of the specified task.
         const rows = _.map(taskEvents, event => {
-            const row = [
-                project.name, task.name, project.customer || 'N/A', task.tags.join(', '),
-                task.createdAt ? formatDate(new Date(task.createdAt)) : 'N/A'
+            const taskCreatedDate = task.createdAt ? formatDate(new Date(task.createdAt)) : 'N/A';
+            const taskCreatedTime = task.createdAt ? new Date(task.createdAt).toLocaleTimeString() : 'N/A';
+            
+            let createdDateStr = taskCreatedDate;
+            let createdTimeStr = taskCreatedTime;
+            
+            if (event.type === 'note') {
+                createdDateStr = formatDate(new Date(event.note.timestamp));
+                createdTimeStr = new Date(event.note.timestamp).toLocaleTimeString();
+            }
+
+            const baseRow = [
+                project.name, project.customer || 'N/A',
+                event.type === 'log' ? 'Task Log' : (event.type === 'note' ? 'Task Note' : 'Task Created'),
+                task.name, task.tags.join(', '),
+                createdDateStr, createdTimeStr,
+                project.budget > 0 ? project.budget : 'N/A',
+                budgetPercentage
             ];
 
             if (event.type === 'log') {
-                row.push(
+                baseRow.push(
                     formatDate(new Date(event.log.start)), new Date(event.log.start).toLocaleTimeString(),
                     formatDate(new Date(event.log.end)), new Date(event.log.end).toLocaleTimeString(),
                     formatTime(event.log.end - event.log.start)
                 );
-                if (includeNotesInExport) row.push('');
+                if (includeNotesInExport) baseRow.push('');
             } else if (event.type === 'note') {
-                row.push(
-                    formatDate(new Date(event.note.timestamp)),
-                    new Date(event.note.timestamp).toLocaleTimeString(),
-                    '', '', ''
-                );
+                baseRow.push('', '', '', '', '');
                 if (includeNotesInExport) {
                     const text = $('<div>').html(event.note.content).text().trim();
                     const noteDate = new Date(event.note.timestamp).toLocaleString();
-                    row.push(`[${noteDate}] ${text}`);
+                    baseRow.push(`[${noteDate}] ${text}`);
                 }
+            } else if (event.type === 'task-created') {
+                baseRow.push('', '', '', '', '');
+                if (includeNotesInExport) baseRow.push('');
             }
-            return row;
+            return baseRow;
         });
 
         const csvRows = [headers, ...rows].map(row => row.map(escapeCsvCell).join(','));
@@ -1367,12 +1438,31 @@ $(() => {
     }
 
     function openNotesView(projectId, taskId) {
-        activeNotesTaskId = taskId;
+        activeNotesProjectId = projectId;
+        activeNotesTaskId = taskId || null;
+        
         const project = _.find(projects, { id: projectId });
-        const task = _.find(project.tasks, { id: taskId });
+        
+        if (taskId) {
+            const task = _.find(project.tasks, { id: taskId });
+            $('#notes-task-title').text(`Notes for Task: ${task.name}`);
+        } else {
+            $('#notes-task-title').text(`Project Notes: ${project.name}`);
+        }
 
-        $('#notes-task-title').text(`Notes for: ${task.name}`);
-        renderNotesForTask(task);
+        const $select = $('#note-target-select').empty();
+        $select.append(`<option value="project">Project Note</option>`);
+        _.forEach(project.tasks, task => {
+            $select.append(`<option value="${task.id}">Task: ${_.escape(task.name)}</option>`);
+        });
+
+        if (taskId) {
+            $select.val(taskId);
+        } else {
+            $select.val('project');
+        }
+
+        renderNotesForContext(project);
         $notesView.removeClass('hidden');
         initializeQuillEditor();
     }
@@ -1383,29 +1473,49 @@ $(() => {
     function setupNotesListener() {
         $('#notes-list').on('click', '.delete-note-btn', function() {
             const noteTimestamp = $(this).closest('.note-item').data('timestamp');
-            if (activeNotesTaskId && noteTimestamp) {
-                handleDeleteNote(activeNotesTaskId, noteTimestamp);
+            const targetType = $(this).closest('.note-item').data('type');
+            const targetTaskId = $(this).closest('.note-item').data('taskId');
+            
+            if (activeNotesProjectId && noteTimestamp) {
+                handleDeleteNote(activeNotesProjectId, targetType, targetTaskId, noteTimestamp);
             }
         });
     }
 
     /**
-     * Renders the list of notes for the active task and scrolls to the bottom.
+     * Renders the list of notes for the active project/task context and scrolls to the bottom.
      */
-    function renderNotesForTask(task) {
+    function renderNotesForContext(project) {
         const $notesList = $('#notes-list').empty();
-        if (!task.notes || _.isEmpty(task.notes)) {
-            $notesList.html('<p class="no-tasks">No notes for this task yet.</p>');
+        
+        let allNotes = [];
+        
+        if (project.notes) {
+            _.forEach(project.notes, note => {
+                allNotes.push({ ...note, displayContext: 'Project Note', type: 'project' });
+            });
+        }
+        
+        _.forEach(project.tasks, task => {
+            if (task.notes) {
+                _.forEach(task.notes, note => {
+                    allNotes.push({ ...note, displayContext: `Task: ${task.name}`, type: 'task', taskId: task.id });
+                });
+            }
+        });
+
+        if (_.isEmpty(allNotes)) {
+            $notesList.html('<p class="no-tasks">No notes found.</p>');
             return;
         }
 
-        const sortedNotes = _.sortBy(task.notes, 'timestamp');
+        const sortedNotes = _.sortBy(allNotes, 'timestamp');
 
         _.forEach(sortedNotes, note => {
             const noteHTML = `
-                <div class="note-item" data-timestamp="${note.timestamp}">
+                <div class="note-item" data-timestamp="${note.timestamp}" data-type="${note.type}" ${note.type === 'task' ? `data-task-id="${note.taskId}"` : ''}>
                     <div class="note-meta">
-                        <span>${new Date(note.timestamp).toLocaleString()}</span>
+                        <span>[${new Date(note.timestamp).toLocaleString()}] - ${_.escape(note.displayContext)}</span>
                         <button class="delete-note-btn" title="Delete Note"><i data-feather="trash-2"></i></button>
                     </div>
                     <div class="note-content">${note.content}</div>
@@ -1424,20 +1534,27 @@ $(() => {
     }
 
     /**
-     * Handles the deletion of a specific note from a task.
+     * Handles the deletion of a specific note from the context.
      */
-    function handleDeleteNote(taskId, noteTimestamp) {
-        const taskInfo = findTaskById(taskId);
-        if (taskInfo && taskInfo.task.notes) {
-            // Remove the note with the matching timestamp
-            _.remove(taskInfo.task.notes, (note) => note.timestamp === noteTimestamp);
-            saveData();
-            renderNotesForTask(taskInfo.task); // Re-render the notes list
+    function handleDeleteNote(projectId, targetType, targetTaskId, noteTimestamp) {
+        const project = _.find(projects, { id: projectId });
+        if (!project) return;
+        
+        if (targetType === 'project' && project.notes) {
+            _.remove(project.notes, (note) => note.timestamp === String(noteTimestamp));
+        } else if (targetType === 'task') {
+            const task = _.find(project.tasks, { id: parseInt(targetTaskId) });
+            if (task && task.notes) {
+                _.remove(task.notes, (note) => note.timestamp === String(noteTimestamp));
+            }
         }
+        saveData();
+        renderNotesForContext(project);
     }
 
     function closeNotesView() {
         $notesView.addClass('hidden');
+        activeNotesProjectId = null;
         activeNotesTaskId = null;
         if (quill) {
             quill.setText('');
@@ -1445,24 +1562,36 @@ $(() => {
     }
 
     function handleAddNote() {
-        if (!activeNotesTaskId || !quill) return;
+        if (!activeNotesProjectId || !quill) return;
 
         const content = quill.root.innerHTML;
         if (quill.getLength() <= 1) return;
 
-        const taskInfo = findTaskById(activeNotesTaskId);
-        if (taskInfo) {
-            if (!taskInfo.task.notes) {
-                taskInfo.task.notes = [];
-            }
-            taskInfo.task.notes.push({
+        const project = _.find(projects, { id: activeNotesProjectId });
+        if (!project) return;
+
+        const target = $('#note-target-select').val();
+
+        if (target === 'project') {
+            if (!project.notes) project.notes = [];
+            project.notes.push({
                 timestamp: new Date().toISOString(),
                 content: content
             });
-            saveData();
-            renderNotesForTask(taskInfo.task);
-            quill.setText('');
+        } else {
+            const task = _.find(project.tasks, { id: parseInt(target) });
+            if (task) {
+                if (!task.notes) task.notes = [];
+                task.notes.push({
+                    timestamp: new Date().toISOString(),
+                    content: content
+                });
+            }
         }
+
+        saveData();
+        renderNotesForContext(project);
+        quill.setText('');
     }
 
     // --- 8. UTILITY & HELPER FUNCTIONS ---
