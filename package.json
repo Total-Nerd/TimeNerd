@@ -1,6 +1,6 @@
 {
   "name": "time-nerd",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "productName": "Time Nerd",
   "description": "A nerdy app for tracking time efficiently.",
   "main": "main.js",

@@ -166,8 +166,12 @@ app.whenReady().then(async () => {
     await loadCredentialsAndAuthorize();
     createWindow();
 
-    // Check for updates on startup
-    autoUpdater.checkForUpdatesAndNotify();
+    // Check for updates on startup (only in packaged app)
+    if (app.isPackaged) {
+        autoUpdater.checkForUpdatesAndNotify();
+    } else {
+        console.log("Skipping update check: App is running in development mode.");
+    }
     if (process.platform === 'win32') {
         Menu.setApplicationMenu(null);
     }
@@ -378,6 +382,9 @@ ipcMain.handle('get-system-idle-time', () => {
 
 // --- App Updates (electron-updater) ---
 ipcMain.handle('check-for-updates', () => {
+    if (!app.isPackaged) {
+        return { error: "Update check skipped in development mode" };
+    }
     return autoUpdater.checkForUpdates();
 });
 
