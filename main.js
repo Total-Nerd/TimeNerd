@@ -9,6 +9,7 @@ const http = require('http');
 const url = require('url');
 const Store = require('electron-store');
 const { google } = require('googleapis');
+const { exec } = require('child_process');
 
 // Add this line for auto-reloading in development
 try {
@@ -347,4 +348,40 @@ ipcMain.handle('save-csv', async (event, payload) => {
 // IPC handler to handle Idle Time Detection
 ipcMain.handle('get-system-idle-time', () => {
     return powerMonitor.getSystemIdleTime();
+});
+
+// --- App Updates ---
+ipcMain.handle('check-update', async () => {
+    return new Promise((resolve) => {
+        exec('git fetch origin master && git status -uno', { cwd: app.getAppPath() }, (error, stdout, stderr) => {
+            if (error) {
+                console.error("check-update error", error);
+                resolve({ updateAvailable: false, error: 'Could not fetch from repo' });
+                return;
+            }
+            if (stdout.includes('Your branch is behind')) {
+                resolve({ updateAvailable: true });
+            } else {
+                resolve({ updateAvailable: false });
+            }
+        });
+    });
+});
+
+ipcMain.handle('perform-update', async () => {
+    return new Promise((resolve) => {
+        exec('git pull origin master && npm install', { cwd: app.getAppPath() }, (error, stdout, stderr) => {
+            if (error) {
+                console.error("perform-update error", error);
+                resolve({ success: false, error: error.message });
+            } else {
+                resolve({ success: true });
+            }
+        });
+    });
+});
+
+ipcMain.handle('restart-app', () => {
+    app.relaunch();
+    app.exit(0);
 });

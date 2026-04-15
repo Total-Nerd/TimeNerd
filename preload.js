@@ -26,5 +26,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Expose sync queue handlers
   getPendingSyncs: () => ipcRenderer.invoke('get-pending-syncs'),
-  setPendingSyncs: (queue) => ipcRenderer.invoke('set-pending-syncs', queue)
+  setPendingSyncs: (queue) => ipcRenderer.invoke('set-pending-syncs', queue),
+
+  // App Updates
+  checkUpdate: () => ipcRenderer.invoke('check-update'),
+  performUpdate: () => ipcRenderer.invoke('perform-update'),
+  restartApp: () => ipcRenderer.invoke('restart-app')
 });

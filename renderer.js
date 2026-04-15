@@ -328,6 +328,8 @@ $(() => {
         $('#google-sheet-modal-btn').on('click', openGoogleSheetModal);
         $('#concurrent-tasks-toggle').on('change', handleConcurrentToggle);
         $('#include-notes-toggle').on('change', handleIncludeNotesToggle);
+        $('#check-update-btn').on('click', handleCheckUpdate);
+        $('#perform-update-btn').on('click', handlePerformUpdate);
         $('#link-sheet-btn').on('click', handleLinkSheet);
         $('#cancel-sheet-link').on('click', closeGoogleSheetModal);
         $('#close-modal').on('click', () => $logModal.addClass('hidden'));
@@ -1687,7 +1689,58 @@ $(() => {
             processSyncQueue();
         }
     }
+    // --- 9. APP UPDATER FUNCTIONS ---
+    async function handleCheckUpdate() {
+        const $btn = $('#check-update-btn');
+        const $text = $('#update-status-text');
+        const $performBtn = $('#perform-update-btn');
+        
+        $btn.text('Checking...').prop('disabled', true);
+        $text.text('Contacting repository...');
+        
+        try {
+            const result = await window.electronAPI.checkUpdate();
+            if (result.updateAvailable) {
+                $text.text('An update is available!');
+                $performBtn.removeClass('hidden');
+            } else if (result.error) {
+                $text.text(`Failed to check: ${result.error}`);
+            } else {
+                $text.text('You are on the latest version.');
+                $performBtn.addClass('hidden');
+            }
+        } catch (e) {
+            $text.text('Error checking for updates.');
+        } finally {
+            $btn.text('Check').prop('disabled', false);
+        }
+    }
 
-    // --- 9. START APPLICATION ---
+    async function handlePerformUpdate() {
+        const $btn = $('#perform-update-btn');
+        const $text = $('#update-status-text');
+        
+        $btn.text('Updating...').prop('disabled', true);
+        $('#check-update-btn').prop('disabled', true);
+        $text.text('Pulling latest code and installing dependencies. This may take a moment...');
+        
+        try {
+            const result = await window.electronAPI.performUpdate();
+            if (result.success) {
+                $text.text('Update successful! Restarting...');
+                setTimeout(() => window.electronAPI.restartApp(), 1500);
+            } else {
+                $text.text(`Update failed: ${result.error}`);
+                $btn.text('Update & Restart').prop('disabled', false);
+                $('#check-update-btn').prop('disabled', false);
+            }
+        } catch (e) {
+            $text.text('Exception occurred during update.');
+            $btn.text('Update & Restart').prop('disabled', false);
+            $('#check-update-btn').prop('disabled', false);
+        }
+    }
+
+    // --- 10. START APPLICATION ---
     initialize();
 });
