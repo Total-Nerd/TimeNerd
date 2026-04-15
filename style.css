@@ -707,6 +707,10 @@ button {
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.setting-item:last-child {
+  margin-bottom: 0;
 }
 .setting-label h4 {
   margin: 0;

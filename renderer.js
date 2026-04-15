@@ -792,9 +792,11 @@ $(() => {
     function setupSettingsModal() {
         // Only create the color swatches once.
         if ($colorSwatchesContainer.children().length === 0) {
+            const savedAccent = localStorage.getItem('accent_color') || 'yellow';
             _.forEach(colorPalettes, (palette, colorName) => {
                 const swatch = $('<button></button>')
                     .addClass('color-swatch')
+                    .toggleClass('active', colorName === savedAccent)
                     .attr('title', palette.name)
                     .data('color', colorName)
                     .css('backgroundColor', palette.colors['--accent-primary']);
