@@ -9,7 +9,7 @@ const http = require('http');
 const url = require('url');
 const Store = require('electron-store');
 const { google } = require('googleapis');
-const { exec } = require('child_process');
+const { autoUpdater } = require('electron-updater');
 
 // Add this line for auto-reloading in development
 try {
@@ -137,11 +137,37 @@ function createWindow() {
     mainWindow.loadFile('index.html');
 }
 
+// --- Auto-Updater Setup ---
+autoUpdater.autoDownload = false; // We want manual control via UI
+
+autoUpdater.on('update-available', (info) => {
+    mainWindow.webContents.send('update-available', info);
+});
+
+autoUpdater.on('update-not-available', (info) => {
+    mainWindow.webContents.send('update-not-available', info);
+});
+
+autoUpdater.on('error', (err) => {
+    mainWindow.webContents.send('update-error', err.message);
+});
+
+autoUpdater.on('download-progress', (progressObj) => {
+    mainWindow.webContents.send('update-progress', progressObj);
+});
+
+autoUpdater.on('update-downloaded', (info) => {
+    mainWindow.webContents.send('update-downloaded', info);
+});
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 app.whenReady().then(async () => {
     await loadCredentialsAndAuthorize();
     createWindow();
+
+    // Check for updates on startup
+    autoUpdater.checkForUpdatesAndNotify();
     if (process.platform === 'win32') {
         Menu.setApplicationMenu(null);
     }
@@ -350,38 +376,15 @@ ipcMain.handle('get-system-idle-time', () => {
     return powerMonitor.getSystemIdleTime();
 });
 
-// --- App Updates ---
-ipcMain.handle('check-update', async () => {
-    return new Promise((resolve) => {
-        exec('git fetch origin master && git status -uno', { cwd: app.getAppPath() }, (error, stdout, stderr) => {
-            if (error) {
-                console.error("check-update error", error);
-                resolve({ updateAvailable: false, error: 'Could not fetch from repo' });
-                return;
-            }
-            if (stdout.includes('Your branch is behind')) {
-                resolve({ updateAvailable: true });
-            } else {
-                resolve({ updateAvailable: false });
-            }
-        });
-    });
+// --- App Updates (electron-updater) ---
+ipcMain.handle('check-for-updates', () => {
+    return autoUpdater.checkForUpdates();
 });
 
-ipcMain.handle('perform-update', async () => {
-    return new Promise((resolve) => {
-        exec('git pull origin master && npm install', { cwd: app.getAppPath() }, (error, stdout, stderr) => {
-            if (error) {
-                console.error("perform-update error", error);
-                resolve({ success: false, error: error.message });
-            } else {
-                resolve({ success: true });
-            }
-        });
-    });
+ipcMain.handle('download-update', () => {
+    return autoUpdater.downloadUpdate();
 });
 
-ipcMain.handle('restart-app', () => {
-    app.relaunch();
-    app.exit(0);
+ipcMain.handle('quit-and-install', () => {
+    autoUpdater.quitAndInstall();
 });

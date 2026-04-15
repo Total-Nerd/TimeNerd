@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "electron-store": "^8.1.0",
+    "electron-updater": "^6.8.3",
     "googleapis": "^158.0.0",
     "jquery": "^3.7.1",
     "lodash": "^4.17.21"
@@ -47,6 +48,13 @@
       "createStartMenuShortcut": true,
       "allowElevation": true
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Total-Nerd",
+        "repo": "TimeNerd"
+      }
+    ],
     "files": [
       "**/*"
     ]

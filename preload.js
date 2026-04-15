@@ -29,7 +29,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setPendingSyncs: (queue) => ipcRenderer.invoke('set-pending-syncs', queue),
 
   // App Updates
-  checkUpdate: () => ipcRenderer.invoke('check-update'),
-  performUpdate: () => ipcRenderer.invoke('perform-update'),
-  restartApp: () => ipcRenderer.invoke('restart-app')
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  downloadUpdate: () => ipcRenderer.invoke('download-update'),
+  quitAndInstall: () => ipcRenderer.invoke('quit-and-install'),
+  
+  onUpdateAvailable: (callback) => ipcRenderer.on('update-available', (event, info) => callback(info)),
+  onUpdateNotAvailable: (callback) => ipcRenderer.on('update-not-available', (event, info) => callback(info)),
+  onUpdateError: (callback) => ipcRenderer.on('update-error', (event, message) => callback(message)),
+  onUpdateProgress: (callback) => ipcRenderer.on('update-progress', (event, progressObj) => callback(progressObj)),
+  onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', (event, info) => callback(info))
 });

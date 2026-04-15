@@ -69,6 +69,7 @@ $(() => {
         await loadData();
         setupEventListeners();
         setupSettingsModal();
+        setupAutoUpdater(); // Set up listeners for electron-updater
         updateGlobalTimerUI();
         feather.replace();
     }
@@ -1690,27 +1691,55 @@ $(() => {
         }
     }
     // --- 9. APP UPDATER FUNCTIONS ---
+    
+    function setupAutoUpdater() {
+        const $text = $('#update-status-text');
+        const $performBtn = $('#perform-update-btn');
+
+        window.electronAPI.onUpdateAvailable((info) => {
+            $text.text(`Update available: version ${info.version}.`);
+            $performBtn.text('Download Update').removeClass('hidden');
+        });
+
+        window.electronAPI.onUpdateNotAvailable(() => {
+            $text.text('You are on the latest version.');
+            $performBtn.addClass('hidden');
+        });
+
+        window.electronAPI.onUpdateError((message) => {
+            $text.text(`Update error: ${message}`);
+            $performBtn.addClass('hidden');
+        });
+
+        window.electronAPI.onUpdateProgress((progressObj) => {
+            const percent = Math.floor(progressObj.percent);
+            $text.text(`Downloading: ${percent}%`);
+            $performBtn.prop('disabled', true).text('Downloading...');
+        });
+
+        window.electronAPI.onUpdateDownloaded((info) => {
+            $text.text(`Version ${info.version} downloaded and ready.`);
+            $performBtn.text('Restart & Install').prop('disabled', false).removeClass('hidden');
+            
+            // Re-bind the perform button specifically for the installer
+            $performBtn.off('click').on('click', () => {
+                window.electronAPI.quitAndInstall();
+            });
+        });
+    }
+
     async function handleCheckUpdate() {
         const $btn = $('#check-update-btn');
         const $text = $('#update-status-text');
-        const $performBtn = $('#perform-update-btn');
         
         $btn.text('Checking...').prop('disabled', true);
-        $text.text('Contacting repository...');
+        $text.text('Checking for updates...');
         
         try {
-            const result = await window.electronAPI.checkUpdate();
-            if (result.updateAvailable) {
-                $text.text('An update is available!');
-                $performBtn.removeClass('hidden');
-            } else if (result.error) {
-                $text.text(`Failed to check: ${result.error}`);
-            } else {
-                $text.text('You are on the latest version.');
-                $performBtn.addClass('hidden');
-            }
+            await window.electronAPI.checkForUpdates();
         } catch (e) {
             $text.text('Error checking for updates.');
+            $btn.text('Check').prop('disabled', false);
         } finally {
             $btn.text('Check').prop('disabled', false);
         }
@@ -1720,24 +1749,14 @@ $(() => {
         const $btn = $('#perform-update-btn');
         const $text = $('#update-status-text');
         
-        $btn.text('Updating...').prop('disabled', true);
-        $('#check-update-btn').prop('disabled', true);
-        $text.text('Pulling latest code and installing dependencies. This may take a moment...');
+        $btn.text('Preparing...').prop('disabled', true);
+        $text.text('Initializing download...');
         
         try {
-            const result = await window.electronAPI.performUpdate();
-            if (result.success) {
-                $text.text('Update successful! Restarting...');
-                setTimeout(() => window.electronAPI.restartApp(), 1500);
-            } else {
-                $text.text(`Update failed: ${result.error}`);
-                $btn.text('Update & Restart').prop('disabled', false);
-                $('#check-update-btn').prop('disabled', false);
-            }
+            await window.electronAPI.downloadUpdate();
         } catch (e) {
-            $text.text('Exception occurred during update.');
-            $btn.text('Update & Restart').prop('disabled', false);
-            $('#check-update-btn').prop('disabled', false);
+            $text.text('Failed to start download.');
+            $btn.text('Download Update').prop('disabled', false);
         }
     }
 
