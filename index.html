@@ -15,10 +15,13 @@
     <div class="draggable-bar"></div>
 
     <div class="top-banner">
-        <div class="search-input-wrapper">
-            <i data-feather="search"></i>
-            <input type="text" id="search-input" placeholder="Search projects, tasks, customers...">
-            <button id="clear-search-btn" class="hidden" title="Clear search"><i data-feather="x"></i></button>
+        <div class="top-banner-left">
+            <button id="menu-toggle-btn" class="menu-btn" title="Toggle Menu"><i data-feather="menu"></i></button>
+            <div class="search-input-wrapper">
+                <i data-feather="search"></i>
+                <input type="text" id="search-input" placeholder="Search projects, tasks, customers...">
+                <button id="clear-search-btn" class="hidden" title="Clear search"><i data-feather="x"></i></button>
+            </div>
         </div>
 
         <div class="top-banner-controls">
@@ -40,9 +43,24 @@
     </div>
 
     <div class="container">
+        <div id="side-nav" class="side-nav hidden">
+            <ul class="side-nav-links">
+                <li><a href="#" id="nav-projects" class="active"><i data-feather="layers"></i> Projects</a></li>
+                <li><a href="#" id="nav-customers"><i data-feather="users"></i> Customers</a></li>
+            </ul>
+        </div>
+
         <div class="main-layout">
             <div id="project-list-container">
                 <div id="active-project-list"></div>
+            </div>
+
+            <div id="customers-view-container" class="hidden">
+                <div class="customers-header">
+                    <h2>Customers</h2>
+                    <button id="add-customer-btn">Add Customer</button>
+                </div>
+                <div id="customer-list"></div>
             </div>
 
             <div id="notes-view" class="hidden">
@@ -147,13 +165,35 @@
                     <h4 class="project-name-header">Project Name</h4>
                     <input type="text" id="project-name" placeholder="Project Name" required>
                     <h4 class="project-customer-header">Customer (Optional)</h4>
-                    <input type="text" id="project-customer" placeholder="Customer (Optional)" list="customer-list">
+                    <input type="text" id="project-customer" placeholder="Customer (Optional)" list="customer-datalist">
+                    <datalist id="customer-datalist"></datalist>
                     <h4 class="budget-header">Budget (in hours, optional)</h4>
                     <input type="number" id="project-budget" placeholder="Budget (in hours, optional)" min="0" step="any">
                 </div>
                 <div class="modal-buttons">
                     <button type="button" id="cancel-project-form">Cancel</button>
                     <button type="submit">Save Project</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="customer-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 id="customer-modal-title">Add New Customer</h2>
+            <form id="customer-form">
+                <input type="hidden" id="customer-id">
+                <div class="form-group">
+                    <h4>Customer Name</h4>
+                    <input type="text" id="customer-name" placeholder="Customer Name" required>
+                    <h4>Contacts</h4>
+                    <textarea id="customer-contacts" placeholder="Contacts (e.g. John Doe - john@acme.com)"></textarea>
+                    <h4>Total Allotment (in hours)</h4>
+                    <input type="number" id="customer-allotment" placeholder="Total hours available" min="0" step="any">
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" id="cancel-customer-form">Cancel</button>
+                    <button type="submit">Save Customer</button>
                 </div>
             </form>
         </div>

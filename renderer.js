@@ -16,35 +16,45 @@ $(() => {
 
     // --- Element Declarations (jQuery style) ---
     // Caching selectors prevents repeated DOM queries, improving performance.
+    const $searchBtn = $('.feather-search');
+    const $menuToggleBtn = $('#menu-toggle-btn');
+    const $sideNav = $('#side-nav');
+    const $navProjects = $('#nav-projects');
+    const $navCustomers = $('#nav-customers');
+
+    // DOM Elements: Main Views
     const $projectListContainer = $('#project-list-container');
+    const $customersViewContainer = $('#customers-view-container');
+    const $activeProjectList = $('#active-project-list');
     const $searchInput = $('#search-input');
     const $clearSearchBtn = $('#clear-search-btn');
     const $globalTimerBar = $('#global-timer-bar');
     const $projectModal = $('#project-modal');
+    const $addTaskModal = $('#add-task-modal');
     const $editTaskModal = $('#edit-task-modal');
-    const $idleModal = $('#idle-modal');
     const $logModal = $('#log-modal');
     const $confirmModal = $('#confirm-modal');
     const $settingsModal = $('#settings-modal');
-    const $addTaskModal = $('#add-task-modal');
+    const $customerModal = $('#customer-modal');
     const $colorSwatchesContainer = $('.color-swatches');
     const $notesView = $('#notes-view');
 
     // --- Global State ---
     // These variables hold the application's data and UI state.
-    let projects = []; // The main array holding all project and task data.
-    let timers = {}; // An object to store active setInterval IDs for running tasks.
+    let projects = []; 
+    let customers = [];
+    let timers = {}; 
     let allowConcurrentTimers = localStorage.getItem('allow_concurrent_timers') === 'true';
     let includeNotesInExport = localStorage.getItem('include_notes_in_export') === 'true';
-    let runningTasks = []; // A cache of all currently running tasks for the global timer bar.
-    let globalTimerIndex = 0; // The index of the currently displayed task in the global timer bar.
-    let actionToConfirm = null; // A function to be executed when a confirmation modal is approved.
+    let runningTasks = []; 
+    let globalTimerIndex = 0; 
+    let actionToConfirm = null; 
     let currentTheme = localStorage.getItem('theme_preference') || 'system';
     let idleInfo = { timer: null, detectedAt: null, activeTaskInfo: null };
-    let currentFilter = ''; // The current value of the search input.
-    let quill; // To hold the Quill editor instance
-    let activeNotesProjectId = null; // To track which project's notes are being viewed
-    let activeNotesTaskId = null; // To track which task's notes are being viewed
+    let currentFilter = ''; 
+    let quill; 
+    let activeNotesProjectId = null; 
+    let activeNotesTaskId = null; 
 
     // --- Color Palettes ---
     // Defines the CSS variables for each available accent color theme.
@@ -61,27 +71,20 @@ $(() => {
     /**
      * Initializes the application on startup.
      */
-    async function initialize() {
+    async function init() {
         const savedAccent = localStorage.getItem('accent_color') || 'yellow';
         applyAccentColor(savedAccent);
         setupTheme();
-        await loadData();
+        projects = await window.electronAPI.getData() || [];
+        customers = await window.electronAPI.getCustomers() || [];
         setupEventListeners();
         setupSettingsModal();
         updateGlobalTimerUI();
         feather.replace();
-    }
-
-
-    // --- 2. DATA HANDLING ---
-    // Functions for loading from and saving to the main process via the preload script.
-
-    /**
-     * Loads project data from the main process and restarts any running timers.
-     */
-    async function loadData() {
-        projects = await window.electronAPI.getData();
-        render(); // Initial render of the UI.
+        setupMenu();
+        render();
+        renderCustomers();
+        updateCustomerDatalist();
 
         // Find any tasks that were running when the app was closed and restart their timers.
         _.forEach(projects, p => {
@@ -94,6 +97,10 @@ $(() => {
         });
     }
 
+
+    // --- 2. DATA HANDLING ---
+    // Functions for loading from and saving to the main process via the preload script.
+
     /**
      * Saves the current `projects` array to the main process.
      */
@@ -101,6 +108,48 @@ $(() => {
         window.electronAPI.setData(projects);
     }
 
+    function saveCustomers() {
+        window.electronAPI.setCustomers(customers);
+    }
+
+    // --- Menu Toggle and Nav ---
+    function setupMenu() {
+        $sideNav.removeClass('hidden');
+
+        $menuToggleBtn.on('click', () => {
+            $sideNav.toggleClass('open');
+        });
+
+        $(document).on('click', (e) => {
+            if ($sideNav.hasClass('open') && !$(e.target).closest('#side-nav, #menu-toggle-btn').length) {
+                $sideNav.removeClass('open');
+            }
+        });
+
+        $navProjects.on('click', (e) => {
+            e.preventDefault();
+            switchView('projects');
+        });
+
+        $navCustomers.on('click', (e) => {
+            e.preventDefault();
+            switchView('customers');
+        });
+    }
+
+    function switchView(view) {
+        $navProjects.toggleClass('active', view === 'projects');
+        $navCustomers.toggleClass('active', view === 'customers');
+        
+        $projectListContainer.toggleClass('hidden', view !== 'projects');
+        $customersViewContainer.toggleClass('hidden', view !== 'customers');
+        
+        if (view === 'customers') {
+            renderCustomers();
+        }
+        
+        $sideNav.removeClass('open');
+    }
 
     // --- 3. RENDER LOGIC ---
     // Functions responsible for building and updating the DOM.
@@ -109,7 +158,6 @@ $(() => {
      * The main render function. It clears and rebuilds the project list.
      */
     function render() {
-        // Persist the expanded/collapsed state of projects across renders.
         const expandedProjects = new Set();
         $('.project-header.expanded').each((i, header) => {
             expandedProjects.add(parseInt($(header).closest('[data-project-id]').data('projectId')));
@@ -117,17 +165,15 @@ $(() => {
 
         const filteredProjects = getFilteredProjects();
         const nonArchivedProjects = filteredProjects.filter(p => !p.isArchived);
-        const $activeProjectList = $('#active-project-list').empty();
+        $activeProjectList.empty();
 
         $projectListContainer.find('.completed-divider, .project-card.completed, .empty-state').remove();
 
-        // Display the appropriate empty state message if needed.
         if (_.isEmpty(nonArchivedProjects) && !_.isEmpty(projects.filter(p=>!p.isArchived))) {
             $projectListContainer.append(`<div class="empty-state"><h3>No items match your search.</h3><p>Try a different search term or clear the search.</p></div>`);
         } else if (_.isEmpty(projects.filter(p=>!p.isArchived))) {
             $projectListContainer.append(`<div class="empty-state"><h3>No projects yet.</h3><p>Add a new project to get started!</p></div>`);
         } else {
-            // Separate projects into active and completed lists.
             const [activeProjects, completedProjects] = _.partition(nonArchivedProjects, p => !p.isComplete);
 
             _.forEach(activeProjects, project => {
@@ -135,7 +181,6 @@ $(() => {
                 $activeProjectList.append(createProjectElement(project, isExpanded));
             });
 
-            // Completed projects are appended outside the sortable container
             if (!_.isEmpty(completedProjects)) {
                 $projectListContainer.append(`<div class="completed-divider"><h3>Completed Projects</h3></div>`);
                 _.forEach(completedProjects, project => {
@@ -145,7 +190,7 @@ $(() => {
             }
         }
         updateDatalists();
-        feather.replace(); // Re-initialize icons after DOM changes.
+        feather.replace(); 
         setupDragAndDrop();
     }
 
@@ -259,10 +304,102 @@ $(() => {
      * Updates the datalists for customer and tag input suggestions.
      */
     function updateDatalists() {
-        const allCustomers = _.chain(projects).map('customer').filter().uniq().value();
         const allTags = _.chain(projects).flatMap('tasks').flatMap('tags').uniq().value();
-        $('#customer-list').html(_.map(allCustomers, c => `<option value="${_.escape(c)}"></option>`).join(''));
         $('#tag-list').html(_.map(allTags, t => `<option value="${_.escape(t)}"></option>`).join(''));
+        updateCustomerDatalist();
+    }
+    
+    function updateCustomerDatalist() {
+        const allCustomers = _.map(customers, 'name');
+        // also include unique customer names from old projects not yet migrated
+        const oldCustomers = _.chain(projects).map('customer').filter(c => c && !allCustomers.includes(c)).uniq().value();
+        const combined = [...allCustomers, ...oldCustomers];
+        $('#customer-datalist').html(_.map(combined, c => `<option value="${_.escape(c)}"></option>`).join(''));
+    }
+    
+    function getFilteredCustomers() {
+        if (!currentFilter) return customers;
+        const lowerCaseFilter = currentFilter.toLowerCase();
+        return _.filter(customers, c => 
+            c.name.toLowerCase().includes(lowerCaseFilter) ||
+            (c.contacts && c.contacts.toLowerCase().includes(lowerCaseFilter))
+        );
+    }
+
+    function renderCustomers() {
+        const $list = $('#customer-list');
+        $list.empty();
+        
+        const filteredCustomers = getFilteredCustomers();
+        
+        if (_.isEmpty(filteredCustomers)) {
+            const msg = _.isEmpty(customers) ? 'No customers yet.' : 'No items match your search.';
+            $list.append(`<div class="empty-state"><h3>${msg}</h3><p>Click "Add Customer" to get started.</p></div>`);
+            return;
+        }
+
+        const tableHTML = `
+            <table class="customer-table">
+                <thead>
+                    <tr>
+                        <th>Customer Name</th>
+                        <th>Contacts</th>
+                        <th class="text-center">Projects</th>
+                        <th class="text-center">Allotment</th>
+                        <th class="text-center">Used</th>
+                        <th class="text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="customer-table-body"></tbody>
+            </table>
+        `;
+        $list.append(tableHTML);
+        const $tbody = $('#customer-table-body');
+        
+        _.forEach(filteredCustomers, c => {
+            const customerProjects = _.filter(projects, p => p.customer === c.name);
+            const numProjects = customerProjects.length;
+            
+            let msUsed = 0;
+            _.forEach(customerProjects, p => {
+                _.forEach(p.tasks, t => {
+                    msUsed += t.totalTime;
+                });
+            });
+            const hoursUsed = (msUsed / 3600000).toFixed(2);
+            
+            const rowHTML = `
+                <tr class="customer-row" data-customer-id="${c.id}">
+                    <td class="font-bold">${_.escape(c.name)}</td>
+                    <td class="text-secondary">${_.escape(c.contacts) || 'N/A'}</td>
+                    <td class="text-center">${numProjects}</td>
+                    <td class="text-center">${c.allotment > 0 ? c.allotment + 'h' : 'N/A'}</td>
+                    <td class="text-center">${hoursUsed}h</td>
+                    <td class="text-right">
+                        <button class="action-btn edit-customer-btn" title="Edit Customer"><i data-feather="edit-2"></i></button>
+                    </td>
+                </tr>
+            `;
+            $tbody.append(rowHTML);
+        });
+        
+        $list.find('.edit-customer-btn').on('click', function() {
+            const customerId = $(this).closest('.customer-row').data('customerId');
+            openEditCustomerModal(customerId);
+        });
+        
+        feather.replace();
+    }
+    
+    function openEditCustomerModal(customerId) {
+        const c = _.find(customers, { id: customerId });
+        if (!c) return;
+        $('#customer-modal-title').text('Edit Customer');
+        $('#customer-id').val(c.id);
+        $('#customer-name').val(c.name);
+        $('#customer-contacts').val(c.contacts);
+        $('#customer-allotment').val(c.allotment > 0 ? c.allotment : '');
+        $customerModal.removeClass('hidden');
     }
 
     /**
@@ -315,8 +452,16 @@ $(() => {
     function setupEventListeners() {
         // Main controls
         $('#add-project-btn').on('click', openAddProjectModal);
+        $('#add-customer-btn').on('click', openCustomerModal);
+        
         $('#project-form').on('submit', handleSaveProject);
         $('#cancel-project-form').on('click', closeProjectModal);
+        
+        $('#customer-form').on('submit', handleSaveCustomer);
+        $('#cancel-customer-form').on('click', closeCustomerModal);
+
+        $('#add-task-modal-form').on('submit', handleAddTaskFromModal);
+        $('#cancel-add-task').on('click', closeAddTaskModal);
         $('#edit-task-form').on('submit', handleSaveTaskEdit);
         $('#cancel-edit-task').on('click', closeEditTaskModal);
 
@@ -329,8 +474,6 @@ $(() => {
         $('#close-modal').on('click', () => $logModal.addClass('hidden'));
         $('#confirm-delete').on('click', handleConfirm);
         $('#cancel-delete').on('click', closeConfirmModal);
-        $('#add-task-modal-form').on('submit', handleAddTaskFromModal);
-        $('#cancel-add-task').on('click', closeAddTaskModal);
         
         $searchInput.on('input', _.debounce(handleSearch, 200));
         $clearSearchBtn.on('click', clearSearch);
@@ -339,7 +482,9 @@ $(() => {
         $('#idle-keep-btn').on('click', handleIdleKeep);
         $('#idle-discard-btn').on('click', handleIdleDiscard);
 
-        // New listeners for Notes and Archive
+        // Menu setup is handled in init()
+
+        // Notes view
         $('#close-notes-view').on('click', closeNotesView);
         $('#add-note-btn').on('click', handleAddNote);
         $('#archived-projects-btn').on('click', showArchivedProjects);
@@ -450,7 +595,12 @@ $(() => {
     function handleSearch() {
         currentFilter = $searchInput.val().toLowerCase();
         $clearSearchBtn.toggleClass('hidden', !currentFilter);
-        render();
+        
+        if (!$customersViewContainer.hasClass('hidden')) {
+            renderCustomers();
+        } else {
+            render();
+        }
     }
 
     /**
@@ -460,7 +610,11 @@ $(() => {
         $searchInput.val('');
         currentFilter = '';
         $clearSearchBtn.addClass('hidden');
-        render();
+        if (!$customersViewContainer.hasClass('hidden')) {
+            renderCustomers();
+        } else {
+            render();
+        }
     }
 
     /**
@@ -902,6 +1056,22 @@ $(() => {
             });
         }
         
+        // Handle auto-creating customer if string doesn't match an existing customer
+        if (customer) {
+            const existingCust = _.find(customers, c => c.name.toLowerCase() === customer.toLowerCase());
+            if (!existingCust) {
+                customers.push({
+                    id: Date.now(),
+                    name: customer,
+                    contacts: '',
+                    allotment: 0
+                });
+                saveCustomers();
+                renderCustomers();
+                updateCustomerDatalist();
+            }
+        }
+        
         saveData();
         render();
         closeProjectModal();
@@ -929,6 +1099,53 @@ $(() => {
         $('#project-form')[0].reset();
     }
 
+    function openCustomerModal() {
+        $('#customer-modal-title').text('Add New Customer');
+        $('#customer-form')[0].reset();
+        $('#customer-id').val('');
+        $customerModal.removeClass('hidden');
+        $('#customer-name').focus();
+    }
+
+    function closeCustomerModal() {
+        $customerModal.addClass('hidden');
+        $('#customer-form')[0].reset();
+    }
+    
+    function handleSaveCustomer(e) {
+        e.preventDefault();
+        const id = parseInt($('#customer-id').val());
+        const name = $('#customer-name').val().trim();
+        const contacts = $('#customer-contacts').val().trim();
+        const allotment = parseFloat($('#customer-allotment').val()) || 0;
+
+        if (id) {
+            const customer = _.find(customers, { id });
+            if (customer) {
+                // If updating name, potentially update projects with old name
+                const oldName = customer.name;
+                Object.assign(customer, { name, contacts, allotment });
+                if (oldName !== name) {
+                    _.forEach(projects, p => {
+                        if (p.customer === oldName) p.customer = name;
+                    });
+                    saveData();
+                    render();
+                }
+            }
+        } else {
+            customers.push({
+                id: Date.now(), name, contacts, allotment
+            });
+        }
+        
+        saveCustomers();
+        renderCustomers();
+        updateCustomerDatalist();
+        closeCustomerModal();
+    }
+
+    function openEditTaskModal() { /* Not replacing but keeping structure clean */ }
     function closeEditTaskModal() {
         $editTaskModal.addClass("hidden");
         $('#edit-task-form')[0].reset();
@@ -973,7 +1190,16 @@ $(() => {
         // Store the action to be performed if the user confirms.
         actionToConfirm = () => {
             if (action.type === 'import') {
-                projects = action.data;
+                // Backward compatibility: check if data is legacy array or new bundle object
+                if (Array.isArray(action.data)) {
+                    projects = action.data;
+                    // For legacy imports, we keep existing customers or clear them? 
+                    // Let's keep them but since it's an overwrite, we'll assume the user wants the backup state.
+                    // Legacy backups didn't have customers, so we'll just leave customers as is.
+                } else if (action.data && action.data.projects) {
+                    projects = action.data.projects;
+                    customers = action.data.customers || [];
+                }
             } else if (action.type === 'project') {
                 _.remove(projects, { id: action.projectId });
             } else if (action.type === 'task') {
@@ -990,7 +1216,10 @@ $(() => {
         if (!actionToConfirm) return;
         actionToConfirm();
         saveData();
+        saveCustomers();
         render();
+        renderCustomers();
+        updateCustomerDatalist();
         closeConfirmModal();
     }
     
@@ -998,7 +1227,11 @@ $(() => {
      * Handles the "Export Backup" action from the settings menu.
      */
     async function handleExport() {
-        await window.electronAPI.exportData(projects);
+        const bundle = {
+            projects: projects,
+            customers: customers
+        };
+        await window.electronAPI.exportData(bundle);
         $('#settings-dropdown').addClass('hidden');
     }
 
@@ -1608,5 +1841,5 @@ $(() => {
     }
 
     // --- 9. START APPLICATION ---
-    initialize();
+    init();
 });

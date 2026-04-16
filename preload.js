@@ -5,6 +5,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Data
   getData: () => ipcRenderer.invoke('get-data'),
   setData: (data) => ipcRenderer.invoke('set-data', data),
+  getCustomers: () => ipcRenderer.invoke('get-customers'),
+  setCustomers: (customers) => ipcRenderer.invoke('set-customers', customers),
   
   // Theme
   setTheme: (theme) => ipcRenderer.invoke('set-theme', theme),

@@ -17,7 +17,8 @@ try {
 // Initialize electron-store to persist application data.
 const store = new Store({
     defaults: {
-        projects: []
+        projects: [],
+        customers: []
     }
 });
 
@@ -93,6 +94,16 @@ ipcMain.handle('get-data', async () => {
 // IPC handler to set data in storage.
 ipcMain.handle('set-data', async (event, projects) => {
     store.set('projects', projects);
+});
+
+// IPC handler to get customers from storage.
+ipcMain.handle('get-customers', async () => {
+    return store.get('customers', []);
+});
+
+// IPC handler to set customers in storage.
+ipcMain.handle('set-customers', async (event, customers) => {
+    store.set('customers', customers);
 });
 
 // IPC handler to set the application's theme source.
