@@ -281,6 +281,7 @@ $(() => {
                             <a href="#" class="menu-item" data-action="edit">Edit</a>
                             <a href="#" class="menu-item" data-action="export">Export CSV</a>
                             <a href="#" class="menu-item" data-action="complete">Project Complete</a>
+                            <a href="#" class="menu-item" data-action="archive">Archive Project</a>
                             <a href="#" class="menu-item" data-action="complete-and-archive">Complete & Archive</a>
                             <a href="#" class="menu-item danger" data-action="delete">Delete</a>
                         </div>
@@ -1638,6 +1639,7 @@ $(() => {
                             <th>Customer</th>
                             <th class="text-center">Tasks</th>
                             <th>Tags</th>
+                            <th class="text-center">Complete</th>
                             <th>Archived Date</th>
                             <th class="text-right">Actions</th>
                         </tr>
@@ -1662,6 +1664,7 @@ $(() => {
                         <td class="text-secondary">${_.escape(project.customer) || 'N/A'}</td>
                         <td class="text-center">${numTasks}</td>
                         <td><span class="text-secondary text-sm">${_.escape(projectTags) || 'None'}</span></td>
+                        <td class="text-center">${project.isComplete ? '<span class="text-success">Yes</span>' : '<span class="text-secondary">No</span>'}</td>
                         <td class="text-secondary text-sm">${formatDateTime(project.archivedAt)}</td>
                         <td class="text-right">
                             <div class="table-actions">

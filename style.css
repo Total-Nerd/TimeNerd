@@ -311,6 +311,12 @@ body {
   vertical-align: middle;
 }
 
+.customer-table th:last-child,
+.customer-table td:last-child {
+  width: 1%;
+  white-space: nowrap;
+}
+
 /* Settings Page Styles */
 .settings-section {
   background-color: var(--bg-secondary);
