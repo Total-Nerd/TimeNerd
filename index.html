@@ -26,19 +26,8 @@
 
         <div class="top-banner-controls">
             <button id="add-project-btn">Add Project</button>
+            <button id="add-customer-btn" class="hidden">Add Customer</button>
             <button id="theme-btn" title="Toggle Theme"></button>
-            <div id="settings-menu-container">
-                <button id="settings-btn" title="Settings">
-                    <i data-feather="more-vertical"></i>
-                </button>
-                <div id="settings-dropdown" class="menu-dropdown hidden">
-                    <a href="#" id="app-settings-btn">Settings</a>
-                    <a href="#" id="archived-projects-btn">Archived Projects</a>
-                    <hr class="menu-divider">
-                    <a href="#" id="import-btn">Import Backup</a>
-                    <a href="#" id="export-btn">Export Backup</a>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -47,6 +36,8 @@
             <ul class="side-nav-links">
                 <li><a href="#" id="nav-projects" class="active"><i data-feather="layers"></i> Projects</a></li>
                 <li><a href="#" id="nav-customers"><i data-feather="users"></i> Customers</a></li>
+                <li><a href="#" id="nav-archive"><i data-feather="archive"></i> Archived Projects</a></li>
+                <li><a href="#" id="nav-settings"><i data-feather="settings"></i> Settings</a></li>
             </ul>
         </div>
 
@@ -58,9 +49,67 @@
             <div id="customers-view-container" class="hidden">
                 <div class="customers-header">
                     <h2>Customers</h2>
-                    <button id="add-customer-btn">Add Customer</button>
                 </div>
                 <div id="customer-list"></div>
+            </div>
+
+            <div id="archive-view-container" class="hidden">
+                <div class="archive-header">
+                    <h2>Archived Projects</h2>
+                    <p>Manage and restore your completed or dormant projects.</p>
+                </div>
+                <div id="archive-list-content"></div>
+            </div>
+
+            <div id="settings-view-container" class="hidden">
+                <div class="settings-header">
+                    <h2>Settings</h2>
+                </div>
+                <div id="settings-page-body">
+                    <div class="settings-section">
+                        <h3>Accent Color</h3>
+                        <p>Choose a color to personalize your experience.</p>
+                        <div class="color-swatches"></div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>General</h3>
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <h4>Allow concurrent active tasks</h4>
+                                <p>Run multiple task timers at the same time.</p>
+                            </div>
+                            <div class="setting-control">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="concurrent-tasks-toggle">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <h4>Include notes in exports</h4>
+                                <p>Include task notes when exporting time logs to CSV.</p>
+                            </div>
+                            <div class="setting-control">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="include-notes-toggle">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>Backup & Data</h3>
+                        <p>Import or export your entire data bundle (Projects, Tasks, Customers, and Notes).</p>
+                        <div class="settings-button-group">
+                            <button id="import-btn" class="secondary">Import Backup</button>
+                            <button id="export-btn" class="secondary">Export Backup</button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div id="notes-view" class="hidden">
@@ -112,49 +161,7 @@
         </div>
     </div>
 
-    <div id="settings-modal" class="modal hidden">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Settings</h2>
-                <button id="close-settings-modal">&times;</button>
-            </div>
-            <div id="settings-body">
-                <h3>Accent Color</h3>
-                <p>Choose a color to personalize your experience.</p>
-                <div class="color-swatches"></div>
 
-                <hr class="menu-divider">
-
-                <h3>General</h3>
-                <div class="setting-item">
-                    <div class="setting-label">
-                        <h4>Allow concurrent active tasks</h4>
-                        <p>Run multiple task timers at the same time.</p>
-                    </div>
-                    <div class="setting-control">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="concurrent-tasks-toggle">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                </div>
-
-                <div class="setting-item">
-                    <div class="setting-label">
-                        <h4>Include notes in exports</h4>
-                        <p>Include task notes when exporting time logs to CSV.</p>
-                    </div>
-                    <div class="setting-control">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="include-notes-toggle">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-    </div>
 
     <div id="project-modal" class="modal hidden">
         <div class="modal-content">
@@ -260,16 +267,7 @@
         </div>
     </div>
 
-    <div id="archive-modal" class="modal hidden">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Archived Projects</h2>
-                <button id="close-archive-modal">&times;</button>
-            </div>
-            <div id="archive-modal-body">
-                </div>
-        </div>
-    </div>
+
 
     <div id="idle-modal" class="modal hidden">
         <div class="modal-content">

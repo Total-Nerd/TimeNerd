@@ -21,10 +21,14 @@ $(() => {
     const $sideNav = $('#side-nav');
     const $navProjects = $('#nav-projects');
     const $navCustomers = $('#nav-customers');
+    const $navArchive = $('#nav-archive');
+    const $navSettings = $('#nav-settings');
 
     // DOM Elements: Main Views
     const $projectListContainer = $('#project-list-container');
     const $customersViewContainer = $('#customers-view-container');
+    const $archiveViewContainer = $('#archive-view-container');
+    const $settingsViewContainer = $('#settings-view-container');
     const $activeProjectList = $('#active-project-list');
     const $searchInput = $('#search-input');
     const $clearSearchBtn = $('#clear-search-btn');
@@ -34,7 +38,6 @@ $(() => {
     const $editTaskModal = $('#edit-task-modal');
     const $logModal = $('#log-modal');
     const $confirmModal = $('#confirm-modal');
-    const $settingsModal = $('#settings-modal');
     const $customerModal = $('#customer-modal');
     const $colorSwatchesContainer = $('.color-swatches');
     const $notesView = $('#notes-view');
@@ -77,16 +80,19 @@ $(() => {
         setupTheme();
         projects = await window.electronAPI.getData() || [];
         customers = await window.electronAPI.getCustomers() || [];
+        
         setupEventListeners();
-        setupSettingsModal();
+        initSettingsPage();
         updateGlobalTimerUI();
-        feather.replace();
-        setupMenu();
+        
+        // Ensure UI displays correctly on startup
+        setupMenu(); 
+        switchView('projects'); 
         render();
         renderCustomers();
         updateCustomerDatalist();
 
-        // Find any tasks that were running when the app was closed and restart their timers.
+        // Restart running timers
         _.forEach(projects, p => {
             _.forEach(p.tasks, t => {
                 if (t.isRunning) {
@@ -95,6 +101,8 @@ $(() => {
                 }
             });
         });
+
+        feather.replace();
     }
 
 
@@ -135,20 +143,43 @@ $(() => {
             e.preventDefault();
             switchView('customers');
         });
+
+        $navArchive.on('click', (e) => {
+            e.preventDefault();
+            switchView('archive');
+        });
+
+        $navSettings.on('click', (e) => {
+            e.preventDefault();
+            switchView('settings');
+        });
     }
 
     function switchView(view) {
         $navProjects.toggleClass('active', view === 'projects');
         $navCustomers.toggleClass('active', view === 'customers');
+        $navArchive.toggleClass('active', view === 'archive');
+        $navSettings.toggleClass('active', view === 'settings');
         
         $projectListContainer.toggleClass('hidden', view !== 'projects');
         $customersViewContainer.toggleClass('hidden', view !== 'customers');
+        $archiveViewContainer.toggleClass('hidden', view !== 'archive');
+        $settingsViewContainer.toggleClass('hidden', view !== 'settings');
         
-        if (view === 'customers') {
+        // Toggle context-aware buttons in the top banner
+        $('#add-project-btn').toggleClass('hidden', view !== 'projects');
+        $('#add-customer-btn').toggleClass('hidden', view !== 'customers');
+        
+        if (view === 'projects') {
+            render();
+        } else if (view === 'customers') {
             renderCustomers();
+        } else if (view === 'archive') {
+            renderArchiveView();
         }
         
         $sideNav.removeClass('open');
+        feather.replace();
     }
 
     // --- 3. RENDER LOGIC ---
@@ -160,7 +191,8 @@ $(() => {
     function render() {
         const expandedProjects = new Set();
         $('.project-header.expanded').each((i, header) => {
-            expandedProjects.add(parseInt($(header).closest('[data-project-id]').data('projectId')));
+            const pId = $(header).closest('[data-project-id]').data('projectId');
+            if (pId) expandedProjects.add(parseInt(pId));
         });
 
         const filteredProjects = getFilteredProjects();
@@ -286,8 +318,8 @@ $(() => {
                     <div class="timer" id="timer-${task.id}">${formatTime(task.totalTime)}</div>
                     <div class="buttons">
                         <button class="start-stop-btn ${task.isRunning ? 'stop' : 'start'}">${task.isRunning ? 'Stop' : 'Start'}</button>
-                        <button class="view-log-btn">Logs</button>
-                        <button class="notes-btn">Notes</button>
+                        <button class="btn-table view-log-btn">Logs</button>
+                        <button class="btn-table notes-btn">Notes</button>
                         <div class="menu-container">
                             <button class="menu-btn" data-type="task"><i data-feather="more-vertical"></i></button>
                             <div class="menu-dropdown hidden">
@@ -376,7 +408,9 @@ $(() => {
                     <td class="text-center">${c.allotment > 0 ? c.allotment + 'h' : 'N/A'}</td>
                     <td class="text-center">${hoursUsed}h</td>
                     <td class="text-right">
-                        <button class="action-btn edit-customer-btn" title="Edit Customer"><i data-feather="edit-2"></i></button>
+                        <div class="table-actions">
+                            <button class="btn-table edit-customer-btn">Edit</button>
+                        </div>
                     </td>
                 </tr>
             `;
@@ -466,7 +500,6 @@ $(() => {
         $('#cancel-edit-task').on('click', closeEditTaskModal);
 
         $projectListContainer.on('click', handleProjectListClick);
-        $('#settings-btn').on('click', () => $('#settings-dropdown').toggleClass('hidden'));
         $('#export-btn').on('click', handleExport);
         $('#import-btn').on('click', handleImport);
         $('#concurrent-tasks-toggle').on('change', handleConcurrentToggle);
@@ -483,11 +516,10 @@ $(() => {
         $('#idle-discard-btn').on('click', handleIdleDiscard);
 
         // Menu setup is handled in init()
-
+        
         // Notes view
         $('#close-notes-view').on('click', closeNotesView);
         $('#add-note-btn').on('click', handleAddNote);
-        $('#archived-projects-btn').on('click', showArchivedProjects);
 
         // Global timer bar controls
         $('#global-timer-stop-btn').on('click', handleGlobalStop);
@@ -925,10 +957,10 @@ $(() => {
     }
 
     /**
-     * Sets up the settings modal, including creating color swatches.
+     * Initializes the settings page content and listeners.
      */
-    function setupSettingsModal() {
-        // Only create the color swatches once.
+    function initSettingsPage() {
+        // Create the color swatches
         if ($colorSwatchesContainer.children().length === 0) {
             const savedAccent = localStorage.getItem('accent_color') || 'yellow';
             _.forEach(colorPalettes, (palette, colorName) => {
@@ -941,15 +973,11 @@ $(() => {
                 $colorSwatchesContainer.append(swatch);
             });
         }
-        $('#app-settings-btn').on('click', (e) => {
-            e.preventDefault();
-            // Set the toggle to its correct state before opening.
-            $('#concurrent-tasks-toggle').prop('checked', allowConcurrentTimers);
-            $('#include-notes-toggle').prop('checked', includeNotesInExport);
-            $settingsModal.removeClass('hidden');
-            $('#settings-dropdown').addClass('hidden');
-        });
-        $('#close-settings-modal').on('click', () => $settingsModal.addClass('hidden'));
+        
+        // Ensure toggles reflects current state
+        $('#concurrent-tasks-toggle').prop('checked', allowConcurrentTimers);
+        $('#include-notes-toggle').prop('checked', includeNotesInExport);
+
         $colorSwatchesContainer.on('click', '.color-swatch', (e) => {
             applyAccentColor($(e.currentTarget).data('color'));
         });
@@ -1563,36 +1591,58 @@ $(() => {
     }
 
     /**
-     * Opens a modal to display and manage archived projects.
+     * Renders the archived projects view.
      */
-    function showArchivedProjects() {
-        $('#settings-dropdown').addClass('hidden'); // <-- Add this line to close the menu
-
+    function renderArchiveView() {
         const archivedProjects = projects.filter(p => p.isArchived);
-        const $modalBody = $('#archive-modal-body').empty();
+        const $archiveContent = $('#archive-list-content').empty();
 
         if (_.isEmpty(archivedProjects)) {
-            $modalBody.html('<p class="no-tasks">You have no archived projects.</p>');
+            $archiveContent.html('<div class="empty-state"><h3>No archived projects.</h3><p>Your archived items will appear here.</p></div>');
         } else {
+            const tableHTML = `
+                <table class="customer-table">
+                    <thead>
+                        <tr>
+                            <th>Project Name</th>
+                            <th>Customer</th>
+                            <th class="text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="archive-table-body"></tbody>
+                </table>
+            `;
+            $archiveContent.append(tableHTML);
+            const $tbody = $('#archive-table-body');
+
             _.forEach(archivedProjects, project => {
-                const itemHTML = `
-                    <div class="archived-item" data-project-id="${project.id}">
-                        <div class="archived-item-info">
-                            <h4>${_.escape(project.name)}</h4>
-                            <p>Customer: ${_.escape(project.customer) || 'N/A'}</p>
-                        </div>
-                        <div class="archived-item-controls">
-                            <button class="unarchive-btn">Unarchive</button>
-                            <button class="danger delete-btn">Delete</button>
-                        </div>
-                    </div>
+                const rowHTML = `
+                    <tr class="customer-row" data-project-id="${project.id}">
+                        <td class="font-bold">${_.escape(project.name)}</td>
+                        <td class="text-secondary">${_.escape(project.customer) || 'N/A'}</td>
+                        <td class="text-right">
+                            <div class="table-actions">
+                                <button class="btn-table unarchive-btn">Restore</button>
+                                <button class="btn-table danger delete-btn">Delete</button>
+                            </div>
+                        </td>
+                    </tr>
                 `;
-                $modalBody.append(itemHTML);
+                $tbody.append(rowHTML);
+            });
+
+            // Re-bind actions
+            $tbody.find('.unarchive-btn').on('click', function() {
+                const projectId = $(this).closest('.customer-row').data('projectId');
+                unarchiveProject(projectId);
+            });
+
+            $tbody.find('.delete-btn').on('click', function() {
+                const projectId = $(this).closest('.customer-row').data('projectId');
+                openConfirmModal({ type: 'project', projectId });
             });
         }
-
-        // Open the modal
-        $('#archive-modal').removeClass('hidden');
+        feather.replace();
     }
 
     /**
@@ -1604,7 +1654,7 @@ $(() => {
             project.isArchived = false;
             saveData();
             render(); // Re-render the main list
-            showArchivedProjects(); // Refresh the modal list
+            renderArchiveView(); // Refresh the view list
         }
     }
 
