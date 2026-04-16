@@ -172,10 +172,13 @@ $(() => {
         
         if (view === 'projects') {
             render();
-        } else if (view === 'customers') {
-            renderCustomers();
-        } else if (view === 'archive') {
-            renderArchiveView();
+        } else {
+            closeNotesView();
+            if (view === 'customers') {
+                renderCustomers();
+            } else if (view === 'archive') {
+                renderArchiveView();
+            }
         }
         
         $sideNav.removeClass('open');
@@ -268,13 +271,13 @@ $(() => {
         } else {
             projectControlsHTML = `
                 <div class="project-controls">
-                    <button class="add-task-btn" title="Add New Task"><i data-feather="plus-circle"></i></button>
+                    <button class="btn-table add-task-btn">New Task</button>
+                    <button class="btn-table notes-btn">Notes</button>
                     <div class="menu-container">
                         <button class="menu-btn" data-type="project"><i data-feather="more-vertical"></i></button>
                         <div class="menu-dropdown hidden">
                             <a href="#" class="menu-item" data-action="edit">Edit</a>
                             <a href="#" class="menu-item" data-action="export">Export CSV</a>
-                            <a href="#" class="menu-item" data-action="notes">Notes</a>
                             <a href="#" class="menu-item" data-action="complete">Project Complete</a>
                             <a href="#" class="menu-item" data-action="complete-and-archive">Complete & Archive</a>
                             <a href="#" class="menu-item danger" data-action="delete">Delete</a>

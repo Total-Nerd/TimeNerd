@@ -495,20 +495,14 @@ button {
   color: var(--text-primary);
 }
 
-/* Add Task button within project headers */
-.project-header .add-task-btn {
-  background-color: var(--bg-tertiary);
-  color: var(--text-secondary);
-  padding: 0.35rem;
-  border-radius: 9999px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.project-header .add-task-btn, .project-header .notes-btn {
   margin-right: 0.5rem;
 }
-.project-header .add-task-btn:hover {
-  background-color: var(--accent-secondary);
-  color: var(--text-on-accent);
+
+.project-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 /* Start/Stop and Log buttons for tasks */
