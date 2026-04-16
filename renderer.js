@@ -635,6 +635,8 @@ $(() => {
         
         if (!$customersViewContainer.hasClass('hidden')) {
             renderCustomers();
+        } else if (!$archiveViewContainer.hasClass('hidden')) {
+            renderArchiveView();
         } else {
             render();
         }
@@ -649,6 +651,8 @@ $(() => {
         $clearSearchBtn.addClass('hidden');
         if (!$customersViewContainer.hasClass('hidden')) {
             renderCustomers();
+        } else if (!$archiveViewContainer.hasClass('hidden')) {
+            renderArchiveView();
         } else {
             render();
         }
@@ -1252,6 +1256,7 @@ $(() => {
         saveCustomers();
         render();
         renderCustomers();
+        renderArchiveView();
         updateCustomerDatalist();
         closeConfirmModal();
     }
@@ -1576,6 +1581,7 @@ $(() => {
         const project = _.find(projects, { id: projectId });
         if (project) {
             project.isArchived = true;
+            project.archivedAt = Date.now();
             saveData();
             render();
         }
@@ -1589,6 +1595,7 @@ $(() => {
         if (project) {
             project.isComplete = true;
             project.isArchived = true;
+            project.archivedAt = Date.now();
             triggerConfetti(); // Give the user some celebratory confetti!
             saveData();
             render();
@@ -1599,11 +1606,13 @@ $(() => {
      * Renders the archived projects view.
      */
     function renderArchiveView() {
-        const archivedProjects = projects.filter(p => p.isArchived);
+        const filteredProjects = getFilteredProjects();
+        const archivedProjects = filteredProjects.filter(p => p.isArchived);
         const $archiveContent = $('#archive-list-content').empty();
 
         if (_.isEmpty(archivedProjects)) {
-            $archiveContent.html('<div class="empty-state"><h3>No archived projects.</h3><p>Your archived items will appear here.</p></div>');
+            const msg = _.isEmpty(projects.filter(p => p.isArchived)) ? 'No archived projects.' : 'No items match your search.';
+            $archiveContent.html(`<div class="empty-state"><h3>${msg}</h3><p>Your archived items will appear here.</p></div>`);
         } else {
             const tableHTML = `
                 <table class="customer-table">
@@ -1611,6 +1620,8 @@ $(() => {
                         <tr>
                             <th>Project Name</th>
                             <th>Customer</th>
+                            <th>Tags</th>
+                            <th>Archived Date</th>
                             <th class="text-right">Actions</th>
                         </tr>
                     </thead>
@@ -1621,10 +1632,18 @@ $(() => {
             const $tbody = $('#archive-table-body');
 
             _.forEach(archivedProjects, project => {
+                const projectTags = _.chain(project.tasks)
+                    .flatMap('tags')
+                    .uniq()
+                    .value()
+                    .join(', ');
+
                 const rowHTML = `
                     <tr class="customer-row" data-project-id="${project.id}">
                         <td class="font-bold">${_.escape(project.name)}</td>
                         <td class="text-secondary">${_.escape(project.customer) || 'N/A'}</td>
+                        <td><span class="text-secondary text-sm">${_.escape(projectTags) || 'None'}</span></td>
+                        <td class="text-secondary text-sm">${formatDateTime(project.archivedAt)}</td>
                         <td class="text-right">
                             <div class="table-actions">
                                 <button class="btn-table unarchive-btn">Restore</button>
@@ -1886,6 +1905,20 @@ $(() => {
     function formatDate(date) {
         const d = new Date(date);
         return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+    }
+
+    /**
+     * Formats a Date object into a DD/MM/YYYY HH:mm string.
+     */
+    function formatDateTime(date) {
+        if (!date) return 'N/A';
+        const d = new Date(date);
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        return `${day}/${month}/${year} ${hours}:${minutes}`;
     }
     
     /**
