@@ -174,8 +174,12 @@ body {
   align-items: flex-start;
 }
 
-#project-list-container {
-  flex-grow: 1; /* Project list takes up available space */
+#project-list-container, 
+#completed-view-container, 
+#customers-view-container, 
+#archive-view-container, 
+#settings-view-container {
+  flex-grow: 1; /* These take up available space in the main layout */
 }
 
 /* Side Navigation */

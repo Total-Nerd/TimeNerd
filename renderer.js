@@ -20,12 +20,14 @@ $(() => {
     const $menuToggleBtn = $('#menu-toggle-btn');
     const $sideNav = $('#side-nav');
     const $navProjects = $('#nav-projects');
+    const $navCompleted = $('#nav-completed');
     const $navCustomers = $('#nav-customers');
     const $navArchive = $('#nav-archive');
     const $navSettings = $('#nav-settings');
 
     // DOM Elements: Main Views
     const $projectListContainer = $('#project-list-container');
+    const $completedViewContainer = $('#completed-view-container');
     const $customersViewContainer = $('#customers-view-container');
     const $archiveViewContainer = $('#archive-view-container');
     const $settingsViewContainer = $('#settings-view-container');
@@ -139,6 +141,11 @@ $(() => {
             switchView('projects');
         });
 
+        $navCompleted.on('click', (e) => {
+            e.preventDefault();
+            switchView('completed');
+        });
+
         $navCustomers.on('click', (e) => {
             e.preventDefault();
             switchView('customers');
@@ -157,11 +164,13 @@ $(() => {
 
     function switchView(view) {
         $navProjects.toggleClass('active', view === 'projects');
+        $navCompleted.toggleClass('active', view === 'completed');
         $navCustomers.toggleClass('active', view === 'customers');
         $navArchive.toggleClass('active', view === 'archive');
         $navSettings.toggleClass('active', view === 'settings');
         
         $projectListContainer.toggleClass('hidden', view !== 'projects');
+        $completedViewContainer.toggleClass('hidden', view !== 'completed');
         $customersViewContainer.toggleClass('hidden', view !== 'customers');
         $archiveViewContainer.toggleClass('hidden', view !== 'archive');
         $settingsViewContainer.toggleClass('hidden', view !== 'settings');
@@ -174,7 +183,9 @@ $(() => {
             render();
         } else {
             closeNotesView();
-            if (view === 'customers') {
+            if (view === 'completed') {
+                renderCompletedView();
+            } else if (view === 'customers') {
                 renderCustomers();
             } else if (view === 'archive') {
                 renderArchiveView();
@@ -202,27 +213,18 @@ $(() => {
         const nonArchivedProjects = filteredProjects.filter(p => !p.isArchived);
         $activeProjectList.empty();
 
-        $projectListContainer.find('.completed-divider, .project-card.completed, .empty-state').remove();
+        const [activeProjects, completedProjects] = _.partition(nonArchivedProjects, p => !p.isComplete);
 
-        if (_.isEmpty(nonArchivedProjects) && !_.isEmpty(projects.filter(p=>!p.isArchived))) {
-            $projectListContainer.append(`<div class="empty-state"><h3>No items match your search.</h3><p>Try a different search term or clear the search.</p></div>`);
-        } else if (_.isEmpty(projects.filter(p=>!p.isArchived))) {
-            $projectListContainer.append(`<div class="empty-state"><h3>No projects yet.</h3><p>Add a new project to get started!</p></div>`);
+        if (_.isEmpty(activeProjects)) {
+            const hasAnyActive = !_.isEmpty(projects.filter(p => !p.isArchived && !p.isComplete));
+            const msg = hasAnyActive ? 'No items match your search.' : 'No projects yet.';
+            const subMsg = hasAnyActive ? 'Try a different search term or clear the search.' : 'Add a new project to get started!';
+            $projectListContainer.append(`<div class="empty-state"><h3>${msg}</h3><p>${subMsg}</p></div>`);
         } else {
-            const [activeProjects, completedProjects] = _.partition(nonArchivedProjects, p => !p.isComplete);
-
             _.forEach(activeProjects, project => {
                 const isExpanded = expandedProjects.has(project.id) || _.some(project.tasks, 'isRunning');
                 $activeProjectList.append(createProjectElement(project, isExpanded));
             });
-
-            if (!_.isEmpty(completedProjects)) {
-                $projectListContainer.append(`<div class="completed-divider"><h3>Completed Projects</h3></div>`);
-                _.forEach(completedProjects, project => {
-                    const isExpanded = false;
-                    $projectListContainer.append(createProjectElement(project, isExpanded));
-                });
-            }
         }
         updateDatalists();
         feather.replace(); 
@@ -637,6 +639,8 @@ $(() => {
             renderCustomers();
         } else if (!$archiveViewContainer.hasClass('hidden')) {
             renderArchiveView();
+        } else if (!$completedViewContainer.hasClass('hidden')) {
+            renderCompletedView();
         } else {
             render();
         }
@@ -653,6 +657,8 @@ $(() => {
             renderCustomers();
         } else if (!$archiveViewContainer.hasClass('hidden')) {
             renderArchiveView();
+        } else if (!$completedViewContainer.hasClass('hidden')) {
+            renderCompletedView();
         } else {
             render();
         }
@@ -1533,11 +1539,17 @@ $(() => {
         if (project) {
             project.isComplete = !project.isComplete;
             if (project.isComplete) {
+                project.completedAt = Date.now();
                 // Fun confetti animation on completion!
                 triggerConfetti();
+            } else {
+                project.completedAt = null;
             }
             saveData();
             render();
+            if (!$completedViewContainer.hasClass('hidden')) {
+                renderCompletedView();
+            }
         }
     }
     
@@ -1584,6 +1596,8 @@ $(() => {
             project.archivedAt = Date.now();
             saveData();
             render();
+            renderArchiveView();
+            renderCompletedView();
         }
     }
 
@@ -1599,6 +1613,8 @@ $(() => {
             triggerConfetti(); // Give the user some celebratory confetti!
             saveData();
             render();
+            renderArchiveView();
+            renderCompletedView();
         }
     }
 
@@ -1620,6 +1636,7 @@ $(() => {
                         <tr>
                             <th>Project Name</th>
                             <th>Customer</th>
+                            <th class="text-center">Tasks</th>
                             <th>Tags</th>
                             <th>Archived Date</th>
                             <th class="text-right">Actions</th>
@@ -1632,6 +1649,7 @@ $(() => {
             const $tbody = $('#archive-table-body');
 
             _.forEach(archivedProjects, project => {
+                const numTasks = project.tasks ? project.tasks.length : 0;
                 const projectTags = _.chain(project.tasks)
                     .flatMap('tags')
                     .uniq()
@@ -1642,6 +1660,7 @@ $(() => {
                     <tr class="customer-row" data-project-id="${project.id}">
                         <td class="font-bold">${_.escape(project.name)}</td>
                         <td class="text-secondary">${_.escape(project.customer) || 'N/A'}</td>
+                        <td class="text-center">${numTasks}</td>
                         <td><span class="text-secondary text-sm">${_.escape(projectTags) || 'None'}</span></td>
                         <td class="text-secondary text-sm">${formatDateTime(project.archivedAt)}</td>
                         <td class="text-right">
@@ -1670,8 +1689,81 @@ $(() => {
     }
 
     /**
-     * Unarchives a project, making it visible again.
+     * Renders the completed projects view.
      */
+    function renderCompletedView() {
+        const filteredProjects = getFilteredProjects();
+        const completedProjects = filteredProjects.filter(p => p.isComplete && !p.isArchived);
+        const $completedContent = $('#completed-list-content').empty();
+
+        if (_.isEmpty(completedProjects)) {
+            const hasAnyCompleted = !_.isEmpty(projects.filter(p => p.isComplete && !p.isArchived));
+            const msg = hasAnyCompleted ? 'No items match your search.' : 'No completed projects yet.';
+            $completedContent.html(`<div class="empty-state"><h3>${msg}</h3><p>Your finished projects will appear here.</p></div>`);
+        } else {
+            const tableHTML = `
+                <table class="customer-table">
+                    <thead>
+                        <tr>
+                            <th>Project Name</th>
+                            <th>Customer</th>
+                            <th class="text-center">Tasks</th>
+                            <th>Tags</th>
+                            <th>Completed Date</th>
+                            <th class="text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="completed-table-body"></tbody>
+                </table>
+            `;
+            $completedContent.append(tableHTML);
+            const $tbody = $('#completed-table-body');
+
+            _.forEach(completedProjects, project => {
+                const numTasks = project.tasks ? project.tasks.length : 0;
+                const projectTags = _.chain(project.tasks)
+                    .flatMap('tags')
+                    .uniq()
+                    .value()
+                    .join(', ');
+
+                const rowHTML = `
+                    <tr class="customer-row" data-project-id="${project.id}">
+                        <td class="font-bold">${_.escape(project.name)}</td>
+                        <td class="text-secondary">${_.escape(project.customer) || 'N/A'}</td>
+                        <td class="text-center">${numTasks}</td>
+                        <td><span class="text-secondary text-sm">${_.escape(projectTags) || 'None'}</span></td>
+                        <td class="text-secondary text-sm">${formatDateTime(project.completedAt)}</td>
+                        <td class="text-right">
+                            <div class="table-actions">
+                                <button class="btn-table reopen-btn">Re-open</button>
+                                <button class="btn-table archive-btn">Archive</button>
+                                <button class="btn-table edit-project-btn">Edit</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                $tbody.append(rowHTML);
+            });
+
+            // Re-bind actions
+            $tbody.find('.reopen-btn').on('click', function() {
+                const projectId = $(this).closest('.customer-row').data('projectId');
+                toggleProjectComplete(projectId);
+            });
+
+            $tbody.find('.archive-btn').on('click', function() {
+                const projectId = $(this).closest('.customer-row').data('projectId');
+                archiveProject(projectId);
+            });
+
+            $tbody.find('.edit-project-btn').on('click', function() {
+                const projectId = $(this).closest('.customer-row').data('projectId');
+                openEditModal('project', projectId);
+            });
+        }
+        feather.replace();
+    }
     function unarchiveProject(projectId) {
         const project = _.find(projects, { id: projectId });
         if (project) {

@@ -36,6 +36,7 @@
             <ul class="side-nav-links">
                 <li><a href="#" id="nav-projects" class="active"><i data-feather="layers"></i> Projects</a></li>
                 <li><a href="#" id="nav-customers"><i data-feather="users"></i> Customers</a></li>
+                <li><a href="#" id="nav-completed"><i data-feather="check-circle"></i> Completed Projects</a></li>
                 <li><a href="#" id="nav-archive"><i data-feather="archive"></i> Archived Projects</a></li>
                 <li><a href="#" id="nav-settings"><i data-feather="settings"></i> Settings</a></li>
             </ul>
@@ -44,6 +45,14 @@
         <div class="main-layout">
             <div id="project-list-container">
                 <div id="active-project-list"></div>
+            </div>
+
+            <div id="completed-view-container" class="hidden">
+                <div class="completed-header">
+                    <h2>Completed Projects</h2>
+                    <p>Review your successfully finished projects.</p>
+                </div>
+                <div id="completed-list-content"></div>
             </div>
 
             <div id="customers-view-container" class="hidden">
