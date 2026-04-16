@@ -586,10 +586,10 @@ button {
 
 /* Project header section */
 .project-header {
-  padding: 1rem 1.5rem;
+  padding: 1.25rem 1.5rem;
   display: flex; 
-  justify-content: space-between; 
-  align-items: center;
+  flex-direction: column;
+  gap: 1rem;
   cursor: pointer;
   transition: background-color var(--transition-speed);
   border-radius: 0.75rem 0.75rem 0 0;
@@ -610,9 +610,14 @@ button {
   color: var(--text-secondary);
   margin: 0.25rem 0 0;
 }
+.project-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+}
 .project-header .project-info {
   flex-grow: 1;
-  padding-right: 1rem;
 }
 .project-info .project-customer {
   font-size: 0.9rem;
@@ -630,11 +635,12 @@ button {
 
 /* Project budget progress bar */
 .project-budget-info {
-  margin-top: 0.5rem;
+  margin-top: 0;
   font-size: 0.75rem;
   color: var(--text-secondary);
   display: flex;
   justify-content: space-between;
+  margin-bottom: 0.25rem;
 }
 .progress-bar-container {
   width: 100%;

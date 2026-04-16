@@ -292,13 +292,15 @@ $(() => {
         return `
             <div class="project-card ${project.isComplete ? 'completed' : ''}" data-project-id="${project.id}">
                 <div class="project-header ${isExpanded ? 'expanded' : ''}">
-                    <div class="project-info">
-                        <h3>${_.escape(project.name)}</h3>
-                        ${customerHTML}
-                        <p id="project-total-${project.id}">Total Time: ${formatTime(totalMs)}</p>
-                        ${budgetHTML}
+                    <div class="project-header-top">
+                        <div class="project-info">
+                            <h3>${_.escape(project.name)}</h3>
+                            ${customerHTML}
+                            <p id="project-total-${project.id}">Total Time: ${formatTime(totalMs)}</p>
+                        </div>
+                        ${projectControlsHTML}
                     </div>
-                    ${projectControlsHTML}
+                    ${budgetHTML}
                 </div>
                 <div class="task-list-container ${isExpanded ? '' : 'hidden'}">${tasksHTML}</div>
             </div>`;
