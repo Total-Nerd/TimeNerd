@@ -317,6 +317,37 @@ body {
   white-space: nowrap;
 }
 
+/* Sortable Table Headers */
+.sortable-header {
+    cursor: pointer;
+    user-select: none;
+    transition: background-color var(--transition-speed);
+    position: relative;
+    white-space: nowrap;
+}
+
+.sortable-header:hover {
+    background-color: var(--bg-hover) !important;
+}
+
+.sort-icon {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    margin-left: 4px;
+    vertical-align: middle;
+    transition: all var(--transition-speed);
+}
+
+.sort-icon.inactive {
+    opacity: 0.2;
+}
+
+.sort-icon.active {
+    color: var(--accent-primary);
+    opacity: 1;
+}
+
 /* Settings Page Styles */
 .settings-section {
   background-color: var(--bg-secondary);

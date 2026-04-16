@@ -60,7 +60,9 @@ $(() => {
     let quill; 
     let activeNotesProjectId = null; 
     let activeNotesTaskId = null; 
-
+    let archiveSort = { column: 'archivedAt', direction: 'desc' };
+    let completedSort = { column: 'completedAt', direction: 'desc' };
+    let customersSort = { column: 'name', direction: 'asc' };
     // --- Color Palettes ---
     // Defines the CSS variables for each available accent color theme.
     const colorPalettes = {
@@ -367,12 +369,11 @@ $(() => {
     }
 
     function renderCustomers() {
-        const $list = $('#customer-list');
-        $list.empty();
-        
-        const filteredCustomers = getFilteredCustomers();
-        
-        if (_.isEmpty(filteredCustomers)) {
+        const filtered = getFilteredCustomers();
+        const sortedCustomers = getSortedCustomers(filtered);
+        const $list = $('#customer-list').empty();
+
+        if (_.isEmpty(sortedCustomers)) {
             const msg = _.isEmpty(customers) ? 'No customers yet.' : 'No items match your search.';
             $list.append(`<div class="empty-state"><h3>${msg}</h3><p>Click "Add Customer" to get started.</p></div>`);
             return;
@@ -382,11 +383,11 @@ $(() => {
             <table class="customer-table">
                 <thead>
                     <tr>
-                        <th>Customer Name</th>
-                        <th>Contacts</th>
-                        <th class="text-center">Projects</th>
-                        <th class="text-center">Allotment</th>
-                        <th class="text-center">Used</th>
+                        <th class="sortable-header" data-col="name">Customer Name ${getSortIcon('customers', 'name')}</th>
+                        <th class="sortable-header" data-col="contacts">Contacts ${getSortIcon('customers', 'contacts')}</th>
+                        <th class="sortable-header text-center" data-col="numProjects">Projects ${getSortIcon('customers', 'numProjects')}</th>
+                        <th class="sortable-header text-center" data-col="allotment">Allotment ${getSortIcon('customers', 'allotment')}</th>
+                        <th class="sortable-header text-center" data-col="msUsed">Used ${getSortIcon('customers', 'msUsed')}</th>
                         <th class="text-right">Actions</th>
                     </tr>
                 </thead>
@@ -396,23 +397,14 @@ $(() => {
         $list.append(tableHTML);
         const $tbody = $('#customer-table-body');
         
-        _.forEach(filteredCustomers, c => {
-            const customerProjects = _.filter(projects, p => p.customer === c.name);
-            const numProjects = customerProjects.length;
-            
-            let msUsed = 0;
-            _.forEach(customerProjects, p => {
-                _.forEach(p.tasks, t => {
-                    msUsed += t.totalTime;
-                });
-            });
-            const hoursUsed = (msUsed / 3600000).toFixed(2);
+        _.forEach(sortedCustomers, c => {
+            const hoursUsed = (c.msUsed / 3600000).toFixed(2);
             
             const rowHTML = `
                 <tr class="customer-row" data-customer-id="${c.id}">
                     <td class="font-bold">${_.escape(c.name)}</td>
                     <td class="text-secondary">${_.escape(c.contacts) || 'N/A'}</td>
-                    <td class="text-center">${numProjects}</td>
+                    <td class="text-center">${c.numProjects}</td>
                     <td class="text-center">${c.allotment > 0 ? c.allotment + 'h' : 'N/A'}</td>
                     <td class="text-center">${hoursUsed}h</td>
                     <td class="text-right">
@@ -424,10 +416,16 @@ $(() => {
             `;
             $tbody.append(rowHTML);
         });
+
+        // Bind sorting
+        $list.find('.sortable-header').on('click', function() {
+            const col = $(this).data('col');
+            toggleSort('customers', col);
+        });
         
         $list.find('.edit-customer-btn').on('click', function() {
             const customerId = $(this).closest('.customer-row').data('customerId');
-            openEditCustomerModal(customerId);
+            openEditModal('customer', customerId);
         });
         
         feather.replace();
@@ -1624,7 +1622,8 @@ $(() => {
      */
     function renderArchiveView() {
         const filteredProjects = getFilteredProjects();
-        const archivedProjects = filteredProjects.filter(p => p.isArchived);
+        const archivedOnly = filteredProjects.filter(p => p.isArchived);
+        const archivedProjects = getSortedProjects(archivedOnly, archiveSort);
         const $archiveContent = $('#archive-list-content').empty();
 
         if (_.isEmpty(archivedProjects)) {
@@ -1635,12 +1634,12 @@ $(() => {
                 <table class="customer-table">
                     <thead>
                         <tr>
-                            <th>Project Name</th>
-                            <th>Customer</th>
-                            <th class="text-center">Tasks</th>
-                            <th>Tags</th>
-                            <th class="text-center">Complete</th>
-                            <th>Archived Date</th>
+                            <th class="sortable-header" data-col="name">Project Name ${getSortIcon('archive', 'name')}</th>
+                            <th class="sortable-header" data-col="customer">Customer ${getSortIcon('archive', 'customer')}</th>
+                            <th class="sortable-header text-center" data-col="tasks">Tasks ${getSortIcon('archive', 'tasks')}</th>
+                            <th class="sortable-header" data-col="tags">Tags ${getSortIcon('archive', 'tags')}</th>
+                            <th class="sortable-header text-center" data-col="isComplete">Complete ${getSortIcon('archive', 'isComplete')}</th>
+                            <th class="sortable-header" data-col="archivedAt">Archived Date ${getSortIcon('archive', 'archivedAt')}</th>
                             <th class="text-right">Actions</th>
                         </tr>
                     </thead>
@@ -1677,6 +1676,12 @@ $(() => {
                 $tbody.append(rowHTML);
             });
 
+            // Bind sorting
+            $archiveContent.find('.sortable-header').on('click', function() {
+                const col = $(this).data('col');
+                toggleSort('archive', col);
+            });
+
             // Re-bind actions
             $tbody.find('.unarchive-btn').on('click', function() {
                 const projectId = $(this).closest('.customer-row').data('projectId');
@@ -1696,7 +1701,8 @@ $(() => {
      */
     function renderCompletedView() {
         const filteredProjects = getFilteredProjects();
-        const completedProjects = filteredProjects.filter(p => p.isComplete && !p.isArchived);
+        const completedOnly = filteredProjects.filter(p => p.isComplete && !p.isArchived);
+        const completedProjects = getSortedProjects(completedOnly, completedSort);
         const $completedContent = $('#completed-list-content').empty();
 
         if (_.isEmpty(completedProjects)) {
@@ -1708,11 +1714,11 @@ $(() => {
                 <table class="customer-table">
                     <thead>
                         <tr>
-                            <th>Project Name</th>
-                            <th>Customer</th>
-                            <th class="text-center">Tasks</th>
-                            <th>Tags</th>
-                            <th>Completed Date</th>
+                            <th class="sortable-header" data-col="name">Project Name ${getSortIcon('completed', 'name')}</th>
+                            <th class="sortable-header" data-col="customer">Customer ${getSortIcon('completed', 'customer')}</th>
+                            <th class="sortable-header text-center" data-col="tasks">Tasks ${getSortIcon('completed', 'tasks')}</th>
+                            <th class="sortable-header" data-col="tags">Tags ${getSortIcon('completed', 'tags')}</th>
+                            <th class="sortable-header" data-col="completedAt">Completed Date ${getSortIcon('completed', 'completedAt')}</th>
                             <th class="text-right">Actions</th>
                         </tr>
                     </thead>
@@ -1747,6 +1753,12 @@ $(() => {
                     </tr>
                 `;
                 $tbody.append(rowHTML);
+            });
+
+            // Bind sorting
+            $completedContent.find('.sortable-header').on('click', function() {
+                const col = $(this).data('col');
+                toggleSort('completed', col);
             });
 
             // Re-bind actions
@@ -2014,6 +2026,103 @@ $(() => {
         const hours = String(d.getHours()).padStart(2, '0');
         const minutes = String(d.getMinutes()).padStart(2, '0');
         return `${day}/${month}/${year} ${hours}:${minutes}`;
+    }
+
+    /**
+     * Sorts a list of projects based on a column and direction.
+     */
+    function getSortedProjects(projectsToSort, sortConfig) {
+        return _.orderBy(projectsToSort, [(project) => {
+            const val = project[sortConfig.column];
+            
+            // Handle special cases for derived data or nested properties
+            switch (sortConfig.column) {
+                case 'name': return project.name.toLowerCase();
+                case 'customer': return (project.customer || '').toLowerCase();
+                case 'tasks': return project.tasks ? project.tasks.length : 0;
+                case 'tags': 
+                    return _.chain(project.tasks)
+                        .flatMap('tags')
+                        .uniq()
+                        .value()
+                        .join(', ')
+                        .toLowerCase();
+                case 'completedAt': 
+                case 'archivedAt': 
+                    return val || 0;
+                case 'isComplete':
+                    return val ? 1 : 0;
+                default: return val;
+            }
+        }], [sortConfig.direction]);
+    }
+
+    /**
+     * Toggles the sort state for a given view and column.
+     */
+    function toggleSort(view, column) {
+        let sortState;
+        if (view === 'archive') sortState = archiveSort;
+        else if (view === 'completed') sortState = completedSort;
+        else if (view === 'customers') sortState = customersSort;
+        
+        if (sortState.column === column) {
+            sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortState.column = column;
+            sortState.direction = 'asc';
+        }
+        
+        if (view === 'archive') renderArchiveView();
+        else if (view === 'completed') renderCompletedView();
+        else if (view === 'customers') renderCustomers();
+    }
+
+    /**
+     * Returns the HTML for a sort icon based on current state.
+     */
+    function getSortIcon(view, column) {
+        let sortState;
+        if (view === 'archive') sortState = archiveSort;
+        else if (view === 'completed') sortState = completedSort;
+        else if (view === 'customers') sortState = customersSort;
+
+        if (sortState.column !== column) return '<i data-feather="chevron-down" class="sort-icon inactive"></i>';
+        return sortState.direction === 'asc' 
+            ? '<i data-feather="chevron-up" class="sort-icon active"></i>' 
+            : '<i data-feather="chevron-down" class="sort-icon active"></i>';
+    }
+
+    /**
+     * Sorts customers based on column and direction.
+     */
+    function getSortedCustomers(customersToSort) {
+        // First, enrich customers with their computed stats for sorting
+        const enriched = _.map(customersToSort, c => {
+            const customerProjects = _.filter(projects, p => p.customer === c.name);
+            let msUsed = 0;
+            _.forEach(customerProjects, p => {
+                _.forEach(p.tasks, t => {
+                    msUsed += t.totalTime;
+                });
+            });
+            return {
+                ...c,
+                numProjects: customerProjects.length,
+                msUsed: msUsed
+            };
+        });
+
+        return _.orderBy(enriched, [(c) => {
+            switch (customersSort.column) {
+                case 'name': return c.name.toLowerCase();
+                case 'contacts': return (c.contacts || '').toLowerCase();
+                case 'numProjects': return c.numProjects;
+                case 'allotment': return c.allotment || 0;
+                case 'msUsed': return c.msUsed;
+                default: return c[customersSort.column];
+            }
+        }], [customersSort.direction]);
     }
     
     /**
