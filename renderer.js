@@ -43,6 +43,7 @@ $(() => {
     const $customerModal = $('#customer-modal');
     const $colorSwatchesContainer = $('.color-swatches');
     const $notesView = $('#notes-view');
+    const $idleModal = $('#idle-modal');
 
     // --- Global State ---
     // These variables hold the application's data and UI state.
@@ -106,6 +107,7 @@ $(() => {
             });
         });
 
+        initSync();
         feather.replace();
     }
 
@@ -208,7 +210,7 @@ $(() => {
         const expandedProjects = new Set();
         $('.project-header.expanded').each((i, header) => {
             const pId = $(header).closest('[data-project-id]').data('projectId');
-            if (pId) expandedProjects.add(parseInt(pId));
+            if (pId) expandedProjects.add(String(pId));
         });
 
         const filteredProjects = getFilteredProjects();
@@ -432,7 +434,7 @@ $(() => {
     }
     
     function openEditCustomerModal(customerId) {
-        const c = _.find(customers, { id: customerId });
+        const c = _.find(customers, c => String(c.id) === String(customerId));
         if (!c) return;
         $('#customer-modal-title').text('Edit Customer');
         $('#customer-id').val(c.id);
@@ -467,12 +469,12 @@ $(() => {
         }
 
         document.querySelectorAll('.task-list-container').forEach(taskList => {
-            const projectId = parseInt(taskList.closest('.project-card').dataset.projectId);
+            const projectId = String(taskList.closest('.project-card').dataset.projectId);
             new Sortable(taskList, {
                 animation: 150,
                 ghostClass: 'sortable-ghost',
                 onEnd: (evt) => {
-                    const project = _.find(projects, { id: projectId });
+                    const project = _.find(projects, p => String(p.id) === String(projectId));
                     if (project) {
                         const movedTask = project.tasks.splice(evt.oldIndex, 1)[0];
                         project.tasks.splice(evt.newIndex, 0, movedTask);
@@ -541,12 +543,12 @@ $(() => {
 
         // Use event delegation for buttons inside the archive modal
         $('#archive-modal-body').on('click', '.unarchive-btn', function() {
-            const projectId = parseInt($(this).closest('.archived-item').data('projectId'));
+            const projectId = String($(this).closest('.archived-item').data('projectId'));
             unarchiveProject(projectId);
         });
 
         $('#archive-modal-body').on('click', '.delete-btn', function() {
-            const projectId = parseInt($(this).closest('.archived-item').data('projectId'));
+            const projectId = String($(this).closest('.archived-item').data('projectId'));
             // We can reuse the existing confirmation modal for deletion
             openConfirmModal({ type: 'project', projectId });
             // Close the archive modal after initiating delete
@@ -562,8 +564,10 @@ $(() => {
         const $tag = $target.closest('.tag');
 
         // Convert data attributes to numbers immediately to prevent type issues.
-        const projectId = parseInt($target.closest('[data-project-id]')?.data('projectId'));
-        const taskId = parseInt($target.closest('[data-task-id]')?.data('taskId'));
+        const pId = $target.closest('[data-project-id]')?.data('projectId');
+        const projectId = pId !== undefined ? String(pId) : undefined;
+        const tId = $target.closest('[data-task-id]')?.data('taskId');
+        const taskId = tId !== undefined ? String(tId) : undefined;
 
         if ($tag.length) {
             $searchInput.val($tag.data('tag'));
@@ -580,8 +584,10 @@ $(() => {
             if ($button.hasClass('notes-btn')) openNotesView(projectId, taskId);
         } else if ($menuItem.length) {
             // We re-fetch projectId from the menuItem's context here
-            const actionProjectId = parseInt($menuItem.closest('[data-project-id]')?.data('projectId'));
-            const actionTaskId = parseInt($menuItem.closest('[data-task-id]')?.data('taskId'));
+            const actionPId = $menuItem.closest('[data-project-id]')?.data('projectId');
+            const actionProjectId = actionPId !== undefined ? String(actionPId) : undefined;
+            const actionTId = $menuItem.closest('[data-task-id]')?.data('taskId');
+            const actionTaskId = actionTId !== undefined ? String(actionTId) : undefined;
             handleMenuItemClick($menuItem, actionProjectId, actionTaskId);
         }
     }
@@ -684,14 +690,14 @@ $(() => {
     async function toggleTimer(projectId, taskId, $button) {
         if ($button) $button.addClass('loading');
         
-        const project = _.find(projects, { id: projectId });
-        const task = _.find(project.tasks, { id: taskId });
+        const project = _.find(projects, p => String(p.id) === String(projectId));
+        const task = _.find(project.tasks, t => String(t.id) === String(taskId));
 
         // If concurrent timers are not allowed, stop any other running task.
         if (!allowConcurrentTimers) {
             const runningTasksList = findAllRunningTasks();
             _.forEach(runningTasksList, running => {
-                if (running.task.id !== taskId) {
+                if (String(running.task.id) !== String(taskId)) {
                     const t = running.task;
                     t.isRunning = false;
                     const end = Date.now();
@@ -733,7 +739,7 @@ $(() => {
     function startTimerInterval(projectId, task) {
         if (timers[task.id]) clearInterval(timers[task.id]);
         
-        const project = _.find(projects, { id: projectId });
+        const project = _.find(projects, p => String(p.id) === String(projectId));
         if (!project) return;
 
         timers[task.id] = setInterval(() => {
@@ -1062,7 +1068,7 @@ $(() => {
 
     function openEditModal(type, projectId, taskId) {
         if (type === "project") {
-            const project = _.find(projects, { id: projectId });
+            const project = _.find(projects, p => String(p.id) === String(projectId));
             $('#project-modal-title').text('Edit Project');
             $('#project-id').val(project.id);
             $('#project-name').val(project.name);
@@ -1070,8 +1076,8 @@ $(() => {
             $('#project-budget').val(project.budget > 0 ? project.budget : '');
             $projectModal.removeClass("hidden");
         } else { // type === "task"
-            const project = _.find(projects, { id: projectId });
-            const task = _.find(project.tasks, { id: taskId });
+            const project = _.find(projects, p => String(p.id) === String(projectId));
+            const task = _.find(project.tasks, t => String(t.id) === String(taskId));
             $('#edit-task-id').val(task.id);
             $('#edit-task-project-id').val(project.id);
             $('#edit-task-name').val(task.name);
@@ -1082,7 +1088,7 @@ $(() => {
 
     function handleSaveProject(e) {
         e.preventDefault();
-        const id = parseInt($('#project-id').val());
+        const id = $('#project-id').val();
         const name = $('#project-name').val().trim();
         const customer = $('#project-customer').val().trim();
         const budget = parseFloat($('#project-budget').val()) || 0;
@@ -1092,7 +1098,7 @@ $(() => {
             Object.assign(project, { name, customer, budget });
         } else { // Otherwise, create a new project.
             projects.unshift({
-                id: Date.now(), name, customer, tasks: [], budget,
+                id: String(Date.now()), name, customer, tasks: [], budget,
                 isComplete: false, isArchived: false, createdAt: new Date().toISOString(),
                 notes: []
             });
@@ -1103,7 +1109,7 @@ $(() => {
             const existingCust = _.find(customers, c => c.name.toLowerCase() === customer.toLowerCase());
             if (!existingCust) {
                 customers.push({
-                    id: Date.now(),
+                    id: String(Date.now()),
                     name: customer,
                     contacts: '',
                     allotment: 0
@@ -1121,10 +1127,10 @@ $(() => {
 
     function handleSaveTaskEdit(e) {
         e.preventDefault();
-        const taskId = parseInt($('#edit-task-id').val());
-        const projectId = parseInt($('#edit-task-project-id').val());
-        const project = _.find(projects, { id: projectId });
-        const task = _.find(project.tasks, { id: taskId });
+        const taskId = $('#edit-task-id').val();
+        const projectId = $('#edit-task-project-id').val();
+        const project = _.find(projects, p => String(p.id) === String(projectId));
+        const task = _.find(project.tasks, t => String(t.id) === String(taskId));
 
         const name = $('#edit-task-name').val().trim();
         const tags = _.map($('#edit-task-tags').val().split(','), s => _.trim(s).toLowerCase());
@@ -1156,7 +1162,7 @@ $(() => {
     
     function handleSaveCustomer(e) {
         e.preventDefault();
-        const id = parseInt($('#customer-id').val());
+        const id = $('#customer-id').val();
         const name = $('#customer-name').val().trim();
         const contacts = $('#customer-contacts').val().trim();
         const allotment = parseFloat($('#customer-allotment').val()) || 0;
@@ -1177,7 +1183,7 @@ $(() => {
             }
         } else {
             customers.push({
-                id: Date.now(), name, contacts, allotment
+                id: String(Date.now()), name, contacts, allotment
             });
         }
         
@@ -1194,7 +1200,7 @@ $(() => {
     }
 
     function openAddTaskModal(projectId) {
-        const project = _.find(projects, { id: projectId });
+        const project = _.find(projects, p => String(p.id) === String(projectId));
         if (!project) return;
         $('#add-task-modal-title').text(`Add Task to "${project.name}"`);
         $('#add-task-project-id').val(projectId);
@@ -1208,13 +1214,13 @@ $(() => {
 
     function handleAddTaskFromModal(e) {
         e.preventDefault();
-        const projectId = parseInt($('#add-task-project-id').val());
-        const project = _.find(projects, { id: projectId });
+        const projectId = $('#add-task-project-id').val();
+        const project = _.find(projects, p => String(p.id) === String(projectId));
         if (!project) return;
         const name = $('#modal-task-name').val().trim();
         const tags = _.map($('#modal-task-tags').val().split(','), _.trim);
         project.tasks.push({
-            id: Date.now(), name, tags, logs: [], totalTime: 0,
+            id: String(Date.now()), name, tags, logs: [], totalTime: 0,
             isRunning: false, currentStartTime: null, notes: [],
             createdAt: new Date().toISOString()
         });
@@ -1243,10 +1249,10 @@ $(() => {
                     customers = action.data.customers || [];
                 }
             } else if (action.type === 'project') {
-                _.remove(projects, { id: action.projectId });
+                _.remove(projects, p => String(p.id) === String(action.projectId));
             } else if (action.type === 'task') {
-                const project = _.find(projects, { id: action.projectId });
-                _.remove(project.tasks, { id: action.taskId });
+                const project = _.find(projects, p => String(p.id) === String(action.projectId));
+                _.remove(project.tasks, t => String(t.id) === String(action.taskId));
             }
         };
         $('#confirm-title').text(action.type === 'import' ? 'Confirm Import' : 'Confirm Deletion');
@@ -1301,7 +1307,7 @@ $(() => {
             return; // Stop execution if the ID is invalid
         }
 
-        const project = _.find(projects, { id: projectId });
+        const project = _.find(projects, p => String(p.id) === String(projectId));
         if (!project) {
             console.error("Export failed: Could not find project with ID:", projectId);
             return; // Stop if the project isn't found
@@ -1534,7 +1540,7 @@ $(() => {
      * Toggles a project's completion status and triggers a confetti animation.
      */
     function toggleProjectComplete(projectId) {
-        const project = _.find(projects, { id: projectId });
+        const project = _.find(projects, p => String(p.id) === String(projectId));
         if (project) {
             project.isComplete = !project.isComplete;
             if (project.isComplete) {
@@ -1556,8 +1562,8 @@ $(() => {
      * Displays the time log entries for a specific task in a modal.
      */
     function showLogs(projectId, taskId) {
-        const project = _.find(projects, { id: projectId });
-        const task = _.find(project.tasks, { id: taskId });
+        const project = _.find(projects, p => String(p.id) === String(projectId));
+        const task = _.find(project.tasks, t => String(t.id) === String(taskId));
         $logModal.find('#modal-title').text(`Time Logs for: ${task.name}`);
         const $modalBody = $logModal.find('#modal-body').empty();
         const $modalFooter = $logModal.find('#modal-footer').empty();
@@ -1589,7 +1595,7 @@ $(() => {
     }
 
     function archiveProject(projectId) {
-        const project = _.find(projects, { id: projectId });
+        const project = _.find(projects, p => String(p.id) === String(projectId));
         if (project) {
             project.isArchived = true;
             project.archivedAt = Date.now();
@@ -1604,7 +1610,7 @@ $(() => {
      * Marks a project as complete and immediately archives it.
      */
     function completeAndArchiveProject(projectId) {
-        const project = _.find(projects, { id: projectId });
+        const project = _.find(projects, p => String(p.id) === String(projectId));
         if (project) {
             project.isComplete = true;
             project.isArchived = true;
@@ -1780,7 +1786,7 @@ $(() => {
         feather.replace();
     }
     function unarchiveProject(projectId) {
-        const project = _.find(projects, { id: projectId });
+        const project = _.find(projects, p => String(p.id) === String(projectId));
         if (project) {
             project.isArchived = false;
             saveData();
@@ -1804,10 +1810,10 @@ $(() => {
         activeNotesProjectId = projectId;
         activeNotesTaskId = taskId || null;
         
-        const project = _.find(projects, { id: projectId });
+        const project = _.find(projects, p => String(p.id) === String(projectId));
         
         if (taskId) {
-            const task = _.find(project.tasks, { id: taskId });
+            const task = _.find(project.tasks, t => String(t.id) === String(taskId));
             $('#notes-task-title').text(`Notes for Task: ${task.name}`);
         } else {
             $('#notes-task-title').text(`Project Notes: ${project.name}`);
@@ -1900,13 +1906,13 @@ $(() => {
      * Handles the deletion of a specific note from the context.
      */
     function handleDeleteNote(projectId, targetType, targetTaskId, noteTimestamp) {
-        const project = _.find(projects, { id: projectId });
+        const project = _.find(projects, p => String(p.id) === String(projectId));
         if (!project) return;
         
         if (targetType === 'project' && project.notes) {
             _.remove(project.notes, (note) => note.timestamp === String(noteTimestamp));
         } else if (targetType === 'task') {
-            const task = _.find(project.tasks, { id: parseInt(targetTaskId) });
+            const task = _.find(project.tasks, t => String(t.id) === String(targetTaskId));
             if (task && task.notes) {
                 _.remove(task.notes, (note) => note.timestamp === String(noteTimestamp));
             }
@@ -1930,7 +1936,7 @@ $(() => {
         const content = quill.root.innerHTML;
         if (quill.getLength() <= 1) return;
 
-        const project = _.find(projects, { id: activeNotesProjectId });
+        const project = _.find(projects, p => String(p.id) === String(activeNotesProjectId));
         if (!project) return;
 
         const target = $('#note-target-select').val();
@@ -1942,7 +1948,7 @@ $(() => {
                 content: content
             });
         } else {
-            const task = _.find(project.tasks, { id: parseInt(target) });
+            const task = _.find(project.tasks, t => String(t.id) === String(target));
             if (task) {
                 if (!task.notes) task.notes = [];
                 task.notes.push({
@@ -1991,7 +1997,7 @@ $(() => {
 
     function findTaskById(taskId) {
         for (const project of projects) {
-            const task = _.find(project.tasks, { id: taskId });
+            const task = _.find(project.tasks, t => String(t.id) === String(taskId));
             if (task) return { project, task };
         }
         return null;
@@ -2135,3 +2141,109 @@ $(() => {
     // --- 9. START APPLICATION ---
     init();
 });
+    // --- 9. SYNCHRONIZATION ---
+    let syncSettings = null;
+
+    async function initSync() {
+        syncSettings = await window.electronAPI.getSyncSettings();
+        updateSyncUI();
+        
+        // Add listeners for Sync UI
+        $('#open-sync-modal-btn').on('click', () => {
+            $('#auth-modal').removeClass('hidden');
+            $('#server-url-step').removeClass('hidden');
+            $('#auth-step').addClass('hidden');
+            $('#sync-server-url').val('');
+        });
+
+        $('.cancel-auth').on('click', () => {
+            $('#auth-modal').addClass('hidden');
+        });
+
+        $('#verify-server-btn').on('click', async () => {
+            let url = $('#sync-server-url').val().trim();
+            if (!url) return;
+            if (!url.startsWith('http')) url = 'https://' + url;
+            
+            const btn = $('#verify-server-btn').text('Verifying...').prop('disabled', true);
+            const res = await window.electronAPI.serverRequest({ url: `${url}/api/health`, method: 'GET' });
+            
+            if (res.success) {
+                $('#server-url-step').addClass('hidden');
+                $('#auth-step').removeClass('hidden');
+                $('#auth-form-electron').data('url', url);
+            } else {
+                alert('Could not connect to server: ' + res.error);
+            }
+            btn.text('Next').prop('disabled', false);
+        });
+
+        $('.auth-tab').on('click', function() {
+            $('.auth-tab').removeClass('active');
+            $(this).addClass('active');
+            const tab = $(this).data('tab');
+            $('#auth-submit-btn').text(tab === 'login' ? 'Sign In' : 'Request Access');
+        });
+
+        $('#back-to-server-btn').on('click', () => {
+            $('#server-url-step').removeClass('hidden');
+            $('#auth-step').addClass('hidden');
+        });
+
+        $('#auth-form-electron').on('submit', async (e) => {
+            e.preventDefault();
+            const url = $('#auth-form-electron').data('url');
+            const email = $('#auth-email').val().trim();
+            const password = $('#auth-password').val().trim();
+            const isLogin = $('.auth-tab.active').data('tab') === 'login';
+            
+            const endpoint = isLogin ? '/api/auth/login' : '/api/auth/request-access';
+            const btn = $('#auth-submit-btn').prop('disabled', true);
+            
+            const res = await window.electronAPI.serverRequest({
+                url: `${url}${endpoint}`,
+                method: 'POST',
+                data: { email, password }
+            });
+            
+            if (res.success) {
+                if (isLogin) {
+                    syncSettings = await window.electronAPI.saveSyncSettings({
+                        syncServerUrl: url,
+                        syncToken: res.data.token,
+                        isSyncEnabled: true
+                    });
+                    updateSyncUI();
+                    $('#auth-modal').addClass('hidden');
+                    // Force a full reload to fetch synced data
+                    window.location.reload();
+                } else {
+                    alert('Access requested successfully! Please wait for approval.');
+                    $('#auth-modal').addClass('hidden');
+                }
+            } else {
+                alert('Error: ' + res.error);
+            }
+            btn.prop('disabled', false);
+        });
+
+        $('#disconnect-sync-btn').on('click', async () => {
+            syncSettings = await window.electronAPI.saveSyncSettings({
+                syncServerUrl: '',
+                syncToken: '',
+                isSyncEnabled: false
+            });
+            updateSyncUI();
+        });
+    }
+
+    function updateSyncUI() {
+        if (syncSettings && syncSettings.isSyncEnabled) {
+            $('#sync-status-container').removeClass('hidden');
+            $('#sync-connect-container').addClass('hidden');
+            $('#sync-status-text').text(`Connected to: ${syncSettings.syncServerUrl}`);
+        } else {
+            $('#sync-status-container').addClass('hidden');
+            $('#sync-connect-container').removeClass('hidden');
+        }
+    }

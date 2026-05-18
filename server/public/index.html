@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TimeNerd | Admin Portal</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/feather-icons"></script>
+</head>
+<body class="dark">
+    <div id="auth-container" class="center-container">
+        <div class="glass-card auth-card">
+            <h1 id="auth-title">Admin Login</h1>
+            <p id="auth-subtitle">Welcome back, Nerd.</p>
+            <form id="auth-form">
+                <div class="input-group">
+                    <label>Email</label>
+                    <input type="email" id="email" required placeholder="admin@timenerd.com">
+                </div>
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" id="password" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn-primary" id="auth-btn">Login</button>
+            </form>
+            <div id="bootstrap-hint" class="hidden">
+                <p>No admin found. The first user to register will become the administrator.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="admin-container" class="hidden">
+        <nav class="top-nav">
+            <div class="logo">Time<span>Nerd</span> Admin</div>
+            <div class="user-info">
+                <span id="user-email"></span>
+                <button id="logout-btn" class="btn-ghost">Logout</button>
+            </div>
+        </nav>
+
+        <main class="content">
+            <header class="content-header">
+                <h2>User Management</h2>
+                <button id="invite-btn" class="btn-primary"><i data-feather="plus"></i> Invite User</button>
+            </header>
+
+            <div class="glass-card table-card">
+                <table id="users-table">
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Created At</th>
+                            <th class="actions">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-body">
+                        <!-- Users will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="invite-modal" class="modal hidden">
+        <div class="modal-content glass-card">
+            <h3>Invite New User</h3>
+            <form id="invite-form">
+                <div class="input-group">
+                    <label>User Email</label>
+                    <input type="email" id="invite-email" required>
+                </div>
+                <div class="input-group">
+                    <label>Temporary Password</label>
+                    <input type="text" id="invite-password" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-ghost" id="cancel-invite">Cancel</button>
+                    <button type="submit" class="btn-primary">Send Invite</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>

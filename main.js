@@ -1,133 +1,237 @@
 // main.js
-// This file is the main entry point for the Electron application.
-// It controls the application's lifecycle and creates the browser window.
-
 const { app, BrowserWindow, ipcMain, dialog, nativeTheme, shell, Menu, powerMonitor } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const http = require('http');
-const url = require('url');
 const Store = require('electron-store');
+const { getDatabase } = require('./db');
+const axios = require('axios');
+const { replicateRxCollection } = require('rxdb/plugins/replication');
 
 // Add this line for auto-reloading in development
 try {
     require('electron-reloader')(module);
 } catch (_) {}
 
-// Initialize electron-store to persist application data.
-const store = new Store({
-    defaults: {
-        projects: [],
-        customers: []
-    }
-});
-
+const store = new Store();
 let mainWindow;
+let db;
 
-// --- Utility Functions ---
-const formatTime = (ms) => {
-    if (isNaN(ms) || ms < 0) return '00:00:00';
-    const totalSeconds = Math.floor(ms / 1000);
-    const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
-    const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
-    const seconds = String(totalSeconds % 60).padStart(2, '0');
-    return `${hours}:${minutes}:${seconds}`;
-};
-
-const formatDate = (date) => {
-    const d = new Date(date);
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-    return `${day}/${month}/${year}`;
-};
-
+async function migrateData() {
+    const projects = store.get('projects', []);
+    const customers = store.get('customers', []);
+    
+    if (projects.length > 0 || customers.length > 0) {
+        console.log('Migrating data to RxDB...');
+        for (const p of projects) {
+            await db.projects.insert({
+                ...p,
+                id: String(p.id),
+                updatedAt: Date.now()
+            });
+        }
+        for (const c of customers) {
+            await db.customers.insert({
+                ...c,
+                id: String(c.id),
+                updatedAt: Date.now()
+            });
+        }
+        // Clear old store to prevent re-migration
+        store.delete('projects');
+        store.delete('customers');
+        console.log('Migration complete.');
+    }
+}
 
 function createWindow() {
-    // Create the browser window.
-    const isWindows = process.platform === 'win32';
     mainWindow = new BrowserWindow({
         width: 1200,
         height: 800,
         frame: true,
         titleBarStyle: true,
         webPreferences: {
-            // Preload script to securely expose Node.js APIs to the renderer process.
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
             nodeIntegration: false,
         },
     });
 
-    // Listen for changes in the OS theme and notify the renderer process.
     nativeTheme.on('updated', () => {
         mainWindow.webContents.send('theme-updated', nativeTheme.shouldUseDarkColors);
     });
 
-    // Load the index.html of the app.
     mainWindow.loadFile('index.html');
 }
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
 app.whenReady().then(async () => {
-    createWindow();
+    const storagePath = app.getPath('userData');
+    db = await getDatabase(storagePath);
+    
+    await migrateData();
+    setupSync();
+    
+    const win = createWindow();
+    setupDataListeners(win);
+
     if (process.platform === 'win32') {
         Menu.setApplicationMenu(null);
     }
 
     app.on('activate', function () {
-        if (BrowserWindow.getAllWindows().length === 0) createWindow();
+        if (BrowserWindow.getAllWindows().length === 0) {
+            const newWin = createWindow();
+            setupDataListeners(newWin);
+        }
     });
 });
 
-// Quit when all windows are closed, except on macOS.
 app.on('window-all-closed', function () {
     if (process.platform !== 'darwin') app.quit();
 });
 
-// IPC handler to get data from storage.
+// --- IPC Handlers (RxDB) ---
+
 ipcMain.handle('get-data', async () => {
-    return store.get('projects', []);
+    const docs = await db.projects.find().exec();
+    return docs.map(d => d.toJSON());
 });
 
-// IPC handler to set data in storage.
 ipcMain.handle('set-data', async (event, projects) => {
-    store.set('projects', projects);
+    // RxDB prefers atomic updates, but for now we'll do upserts to match the bulk 'set-data' call
+    for (const p of projects) {
+        await db.projects.upsert({
+            ...p,
+            id: String(p.id),
+            updatedAt: Date.now()
+        });
+    }
 });
 
-// IPC handler to get customers from storage.
 ipcMain.handle('get-customers', async () => {
-    return store.get('customers', []);
+    const docs = await db.customers.find().exec();
+    return docs.map(d => d.toJSON());
 });
 
-// IPC handler to set customers in storage.
 ipcMain.handle('set-customers', async (event, customers) => {
-    store.set('customers', customers);
+    for (const c of customers) {
+        await db.customers.upsert({
+            ...c,
+            id: String(c.id),
+            updatedAt: Date.now()
+        });
+    }
 });
 
-// IPC handler to set the application's theme source.
 ipcMain.handle('set-theme', (event, theme) => {
-    nativeTheme.themeSource = theme; // 'system', 'light', or 'dark'
+    nativeTheme.themeSource = theme;
     return nativeTheme.shouldUseDarkColors;
 });
 
-// IPC handler to export all data as a JSON file.
-ipcMain.handle('export-data', async (event, data) => {
-    // --- Create a formatted timestamp ---
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const seconds = String(now.getSeconds()).padStart(2, '0');
-    const timestamp = `${year}${month}${day}-${hours}${minutes}${seconds}`;
-    // --- End of timestamp creation ---
+// --- Sync Handlers ---
 
+let replications = [];
+
+async function setupSync() {
+    const settings = await db.settings.findOne('current').exec();
+    if (settings && settings.isSyncEnabled && settings.syncServerUrl && settings.syncToken) {
+        startReplication(settings.syncServerUrl, settings.syncToken);
+    }
+}
+
+function startReplication(url, token) {
+    // Stop existing
+    replications.forEach(r => r.cancel());
+    replications = [];
+
+    const collections = ['projects', 'customers'];
+    collections.forEach(colName => {
+        const replicationState = replicateRxCollection({
+            collection: db[colName],
+            replicationIdentifier: `http-sync-${colName}`,
+            waitForLeadership: true,
+            pull: {
+                async handler(lastPulledCheckpoint, batchSize) {
+                    try {
+                        const res = await axios.post(`${url}/api/sync/pull`, {
+                            collection: colName,
+                            lastCheckpoint: lastPulledCheckpoint,
+                            limit: batchSize
+                        }, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        return {
+                            documents: res.data.documents,
+                            checkpoint: res.data.checkpoint
+                        };
+                    } catch (err) {
+                        console.error(`Pull error for ${colName}:`, err.message);
+                        return { documents: [], checkpoint: lastPulledCheckpoint };
+                    }
+                }
+            },
+            push: {
+                async handler(docs) {
+                    try {
+                        await axios.post(`${url}/api/sync/push`, {
+                            collection: colName,
+                            events: docs
+                        }, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        return []; // Success returns empty array
+                    } catch (err) {
+                        console.error(`Push error for ${colName}:`, err.message);
+                        return docs; // Return failed docs to retry
+                    }
+                }
+            }
+        });
+        replications.push(replicationState);
+    });
+}
+
+ipcMain.handle('get-sync-settings', async () => {
+    const settings = await db.settings.findOne('current').exec();
+    return settings ? settings.toJSON() : null;
+});
+
+ipcMain.handle('save-sync-settings', async (event, settings) => {
+    const current = await db.settings.upsert({
+        ...settings,
+        id: 'current',
+        updatedAt: Date.now()
+    });
+    if (current.isSyncEnabled && current.syncServerUrl && current.syncToken) {
+        startReplication(current.syncServerUrl, current.syncToken);
+    } else {
+        replications.forEach(r => r.cancel());
+        replications = [];
+    }
+    return current.toJSON();
+});
+
+ipcMain.handle('server-request', async (event, { url, method, data, token }) => {
+    try {
+        const config = {
+            method,
+            url,
+            data,
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        };
+        const res = await axios(config);
+        return { success: true, data: res.data };
+    } catch (err) {
+        return { success: false, error: err.response?.data?.error || err.message };
+    }
+});
+
+// --- Other Handlers ---
+
+ipcMain.handle('export-data', async (event, data) => {
+    const now = new Date();
+    const timestamp = now.toISOString().replace(/[:.]/g, '-');
     const { filePath } = await dialog.showSaveDialog({
         title: 'Export Data Backup',
-        // Use the timestamp in the default filename
         defaultPath: `time-nerd-backup-${timestamp}.json`,
         filters: [{ name: 'JSON Files', extensions: ['json'] }]
     });
@@ -143,7 +247,6 @@ ipcMain.handle('export-data', async (event, data) => {
     return { success: false, error: 'Save dialog cancelled.' };
 });
 
-// IPC handler to import all data as a JSON file.
 ipcMain.handle('import-data', async (event) => {
     const { filePaths } = await dialog.showOpenDialog({
         title: 'Import Backup',
@@ -162,10 +265,8 @@ ipcMain.handle('import-data', async (event) => {
     return { success: false, error: 'Open dialog cancelled.' };
 });
 
-// IPC handler to save a CSV file.
 ipcMain.handle('save-csv', async (event, payload) => {
-    const { data, defaultPath } = payload; // Destructure the payload object here
-    
+    const { data, defaultPath } = payload;
     const { filePath } = await dialog.showSaveDialog({
         title: 'Save Time Log as CSV',
         defaultPath: `${defaultPath}.csv`,
@@ -174,21 +275,29 @@ ipcMain.handle('save-csv', async (event, payload) => {
 
     if (filePath) {
         try {
-            // Ensure 'data' is a string before writing.
-            if (typeof data !== 'string') {
-                throw new Error('Invalid data format: CSV data must be a string.');
-            }
             fs.writeFileSync(filePath, data, 'utf-8');
             return { success: true, path: filePath };
         } catch (error) {
-            console.error('Failed to save the file:', error);
             return { success: false, error: error.message };
         }
     }
-    return { success: false, error: 'Save dialog cancelled by user.' };
+    return { success: false, error: 'Save dialog cancelled.' };
 });
 
-// IPC handler to handle Idle Time Detection
 ipcMain.handle('get-system-idle-time', () => {
     return powerMonitor.getSystemIdleTime();
 });
+
+function setupDataListeners(mainWindow) {
+    const collections = ['projects', 'customers', 'settings'];
+    collections.forEach(colName => {
+        db[colName].$.subscribe(changeEvent => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('data-updated', {
+                    collection: colName,
+                    event: changeEvent
+                });
+            }
+        });
+    });
+}

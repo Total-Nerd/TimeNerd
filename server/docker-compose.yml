@@ -1,0 +1,26 @@
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/timenerd
+      - JWT_SECRET=supersecretkey-change-this-in-production
+      - PORT=3000
+      - ADMIN_EMAIL=admin@timenerd.com
+      - ADMIN_PASSWORD=admin123
+    depends_on:
+      - mongo
+    restart: always
+
+  mongo:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    restart: always
+
+volumes:
+  mongo-data:

@@ -1,6 +1,6 @@
 {
   "name": "time-nerd",
-  "version": "1.4.0",
+  "version": "2.0.0",
   "productName": "Time Nerd",
   "description": "A nerdy app for tracking time efficiently.",
   "main": "main.js",
@@ -22,9 +22,18 @@
     "electron-reloader": "^1.2.3"
   },
   "dependencies": {
+    "axios": "^1.15.2",
     "electron-store": "^8.1.0",
     "jquery": "^3.7.1",
-    "lodash": "^4.17.21"
+    "leveldown": "^6.1.1",
+    "lodash": "^4.17.21",
+    "lokijs": "^1.5.12",
+    "pouchdb-adapter-http": "^9.0.0",
+    "pouchdb-adapter-idb": "^9.0.0",
+    "pouchdb-adapter-leveldb": "^9.0.0",
+    "pouchdb-replication": "^9.0.0",
+    "rxdb": "^14.17.1",
+    "rxjs": "^7.8.2"
   },
   "build": {
     "appId": "com.timenerd.app",

@@ -402,7 +402,7 @@ body {
 /* --- 4. FORMS & INPUTS --- */
 
 /* General input styles */
-input[type="text"], input[type="number"], select {
+input[type="text"], input[type="number"], input[type="email"], input[type="password"], textarea, select {
   width: 100%;
   background-color: var(--bg-primary);
   color: var(--text-primary);
@@ -413,7 +413,7 @@ input[type="text"], input[type="number"], select {
   transition: border-color var(--transition-speed), box-shadow var(--transition-speed);
 }
 
-input[type="text"]:focus, input[type="number"]:focus, select:focus {
+input[type="text"]:focus, input[type="number"]:focus, input[type="email"]:focus, input[type="password"]:focus, textarea:focus, select:focus {
   border-color: var(--border-accent-focus);
   box-shadow: 0 0 0 3px hsla(var(--accent-primary-hsl), 0.2);
 }
@@ -1394,3 +1394,72 @@ input:checked + .slider:before {
         transform: rotate(360deg);
     }
 }
+/* --- Synchronization Styles --- */
+.sync-status-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background-color: var(--bg-tertiary);
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-primary);
+}
+
+.sync-status-banner i {
+    width: 18px;
+    height: 18px;
+    color: var(--success);
+}
+
+.sync-status-banner.offline i {
+    color: var(--text-secondary);
+}
+
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.auth-modal-content {
+    max-width: 450px !important;
+}
+
+.auth-tabs {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.auth-tab {
+    padding: 0.5rem 1rem;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+}
+
+.auth-tab.active {
+    color: var(--accent-primary);
+    border-bottom-color: var(--accent-primary);
+}
+
+#auth-form-electron {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+#auth-form-electron input {
+    margin-bottom: 0.5rem;
+}
+
+.sync-status-banner span {
+    flex-grow: 1;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+

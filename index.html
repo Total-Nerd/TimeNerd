@@ -111,6 +111,29 @@
                     </div>
 
                     <div class="settings-section">
+                        <h3>Synchronization</h3>
+                        <p>Keep your data in-sync over multiple devices.</p>
+                        
+                        <div id="sync-status-container" class="sync-status-banner hidden">
+                            <i data-feather="refresh-cw"></i>
+                            <span id="sync-status-text">Connected to server</span>
+                            <button id="disconnect-sync-btn" class="secondary btn-sm">Disconnect</button>
+                        </div>
+
+                        <div id="sync-connect-container">
+                            <div class="setting-item">
+                                <div class="setting-label">
+                                    <h4>Connect to Server</h4>
+                                    <p>Enter the domain or IP of your TimeNerd API server.</p>
+                                </div>
+                                <div class="setting-control">
+                                    <button id="open-sync-modal-btn" class="secondary">Connect</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
                         <h3>Backup & Data</h3>
                         <p>Import or export your entire data bundle (Projects, Tasks, Customers, and Notes).</p>
                         <div class="settings-button-group">
@@ -285,6 +308,40 @@
             <div class="modal-buttons idle-buttons">
                 <button id="idle-discard-btn">Discard Time</button>
                 <button id="idle-keep-btn">Keep Time</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="auth-modal" class="modal hidden">
+        <div class="modal-content auth-modal-content">
+            <h2 id="auth-modal-title">Connect to Server</h2>
+            <div id="server-url-step">
+                <p>Enter your server's domain or IP address.</p>
+                <div class="form-group">
+                    <input type="text" id="sync-server-url" placeholder="https://timenerd.example.com" required>
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" class="cancel-auth">Cancel</button>
+                    <button type="button" id="verify-server-btn">Next</button>
+                </div>
+            </div>
+
+            <div id="auth-step" class="hidden">
+                <p id="auth-instruction">Sign in or request access to this server.</p>
+                <div class="auth-tabs">
+                    <button class="auth-tab active" data-tab="login">Sign In</button>
+                    <button class="auth-tab" data-tab="request">Request Access</button>
+                </div>
+                <form id="auth-form-electron">
+                    <div class="form-group">
+                        <input type="email" id="auth-email" placeholder="Email" required>
+                        <input type="password" id="auth-password" placeholder="Password" required>
+                    </div>
+                    <div class="modal-buttons">
+                        <button type="button" id="back-to-server-btn" class="secondary">Back</button>
+                        <button type="submit" id="auth-submit-btn">Sign In</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

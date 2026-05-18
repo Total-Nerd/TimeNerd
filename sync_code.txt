@@ -1,0 +1,20 @@
+"    // --- 9. SYNCHRONIZATION ---\
+    let syncSettings = null;\
+\
+    async function initSync() {\
+        syncSettings = await window.electronAPI.getSyncSettings();\
+        updateSyncUI();\
+        \
+        // Add listeners for Sync UI\
+        $('#op
+<truncated 4168 bytes>
+"        initSync();\
+        feather.replace();\
+    }\
+"
+"        });\
+        \
+        initSync();\
+        feather.replace();\
+    }\
+"
