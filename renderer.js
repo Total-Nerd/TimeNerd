@@ -2140,8 +2140,8 @@ $(() => {
 
     // --- 9. START APPLICATION ---
     init();
-});
-    // --- 9. SYNCHRONIZATION ---
+
+// --- 9. SYNCHRONIZATION ---
     let syncSettings = null;
 
     async function initSync() {
@@ -2166,7 +2166,7 @@ $(() => {
             if (!url.startsWith('http')) url = 'https://' + url;
             
             const btn = $('#verify-server-btn').text('Verifying...').prop('disabled', true);
-            const res = await window.electronAPI.serverRequest({ url: `${url}/api/health`, method: 'GET' });
+            const res = await window.electronAPI.serverRequest({ url: `${url}/api/auth/status`, method: 'GET' });
             
             if (res.success) {
                 $('#server-url-step').addClass('hidden');
@@ -2247,3 +2247,4 @@ $(() => {
             $('#sync-connect-container').removeClass('hidden');
         }
     }
+});
